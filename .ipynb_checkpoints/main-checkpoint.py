@@ -437,7 +437,6 @@ if __name__ == '__main__':
 	
 		# preds = np.concatenate([i.reshape(-1, 1) + 0 for i in preds], axis=1)
 		# pd.DataFrame(preds, columns=[str(i) for i in range(10)]).to_csv('labels.csv')
-	    print('END@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@')
 	    lossTfinal, lossFinal = np.mean(lossT, axis=1), np.mean(loss, axis=1)
 	    labelsFinal = (np.sum(labels, axis=1) >= 1) + 0
        # print('lossTfinal is : ',lossTfinal.shape)
