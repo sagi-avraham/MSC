@@ -5,9 +5,8 @@ from sklearn.metrics import roc_auc_score
 import os
 
 scores_array = []
-file_path = 'anomoly/anomolyscores.txt'
-
-def pot_scores(init_score, score, label, q=1e-5, level=0.02):
+file_path = 'anomaly/anomalyscores.txt'
+def pot_scores(init_score, score, label, file_path='anomaly/anomalyscores.txt', q=1e-5, level=0.02):
     """
     Run POT method on given score.
     Args:
@@ -16,23 +15,26 @@ def pot_scores(init_score, score, label, q=1e-5, level=0.02):
         score (np.ndarray): The data to run POT method.
             it should be the anomaly score of test set.
         label (np.ndarray): The ground-truth labels.
+        file_path (str): Path to the file where scores will be written.
         q (float): Detection level (risk).
         level (float): Probability associated with the initial threshold t.
     Returns:
         tuple: A tuple containing:
             - score (np.ndarray): The updated score array.
+            - scores_array (list): A list of the scores that were written to the file.
             - min_top_score (float): The lowest value in the top percentile scores.
     """
-   # print('Testing POT method...')
+    # print('Testing POT method...')
 
-    fraction = 0.1  # Define the fraction of top scores to consider
+    fraction = 0.0001
+    print('fraction is',fraction)# Define the fraction of top scores to consider, high value gives more false negatives and lower gives higher false positives
     lms = lm[0]  # Assuming lm is defined in src.constants
-    
+    scores_array = []  # Initialize the list to store scores
+
     while True:
         try:
             s = SPOT(q)  # SPOT object
             s.fit(init_score, score)  # Fit the SPOT model
-            
             s.initialize(level=lms, min_extrema=False, verbose=False)  # Initialization step
         except Exception as e:
             print(f"Exception during SPOT initialization: {e}")
@@ -43,8 +45,8 @@ def pot_scores(init_score, score, label, q=1e-5, level=0.02):
     # Ensure `score` is a NumPy array
     score = np.asarray(score)
     
-   # print('@@@@@ SCORE IS:', score)
-    #print('Score length is', len(score))
+    # print('@@@@@ SCORE IS:', score)
+    # print('Score length is', len(score))
     
     # Sort the scores array in descending order
     sorted_scores = np.sort(score)[::-1]
@@ -59,16 +61,21 @@ def pot_scores(init_score, score, label, q=1e-5, level=0.02):
     min_top_score = np.min(top_scores)
 
     # Write scores to file only if all labels are 0
- #   if np.all(label == 0):
-	    
-  #      if not os.path.exists(os.path.dirname(file_path)):
-   #         os.makedirs(os.path.dirname(file_path))  # Create directory if it does not exist
+    if np.all(label == 0):
+        # Check if file exists and delete it
+        if os.path.exists(file_path):
+            os.remove(file_path)
         
-    #    with open(file_path, 'a') as file:
-     #       for s in score:
-      #          file.write(f"{s}\n")
-       #         scores_array.append(s)  # Append score to the global list
+        # Create directory if it does not exist
+        if not os.path.exists(os.path.dirname(file_path)):
+            os.makedirs(os.path.dirname(file_path))
+        
+        # Write scores to file
+        with open(file_path, 'a') as file:
+            for s in score:
+                file.write(f"{s}\n")
+                scores_array.append(s)  # Append score to the list
 
-   # print('Scores array length is', len(scores_array))
+    print('min top score is', min_top_score)
     
-    return score, scores_array,min_top_score
+    return score, scores_array, min_top_score

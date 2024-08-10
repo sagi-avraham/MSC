@@ -7,6 +7,8 @@ import os
 
 
 
+global actual_label
+
 
 def adjust_predicts(min_top_score,score, label,
                     threshold=None,
@@ -25,9 +27,9 @@ def adjust_predicts(min_top_score,score, label,
         np.ndarray: predict labels
     """
     if len(score) != len(label):
-        raise ValueError("score and label must have the same length")
         print('len score',len(score))
         print('len label',len(label))
+        raise ValueError("score and label must have the same length")
     score = np.asarray(score)
     label = np.asarray(label)
     print('LABEL IS:',label)
@@ -47,13 +49,16 @@ def adjust_predicts(min_top_score,score, label,
         print('no signal')
     anomaly_state = False
     anomaly_count = 0
+    count=0
     for i in range(len(score)):
-        if actual[i] and predict[i] and not anomaly_state:
+        if predict[i] and not anomaly_state:
             anomaly_state = True
             anomaly_count += 1
-            for j in range(i, 0, -1):
-                if not actual[j]:
-                    break
+            for j in range(i, i-50, -1):
+                if score[i] < min_top_score:
+                    count=+1
+                    if count>25:
+	                    break
                 else:
                     if not predict[j]:
                         predict[j] = True
@@ -84,12 +89,13 @@ def calc_point2point(predict, actual):
     precision = TP / (TP + FP + 0.00001)
     recall = TP / (TP + FN + 0.00001)
     f1 = 2 * precision * recall / (precision + recall + 0.00001)
+    anomalies=np.sum(predict)
     try:
         roc_auc = roc_auc_score(actual, predict)
     except:
         roc_auc = 0
 
-    return f1, precision, recall, TP, TN, FP, FN, roc_auc
+    return f1, precision, recall, TP, TN, FP, FN, roc_auc,anomalies
 
 
 
@@ -174,6 +180,8 @@ def pot_eval(min_top_score, init_score, score, label, q=1e-5, level=0.02):
         dict: POT result dictionary.
     """
     lms = lm[0]
+    predict_label=[]
+    False_alarm=0
     while True:
         try:
             s = SPOT(q)  # SPOT object
@@ -194,16 +202,36 @@ def pot_eval(min_top_score, init_score, score, label, q=1e-5, level=0.02):
     # Define the criteria for signal status
     TP = p_t[3]
     FN = p_t[6]
-    
+    anomalies=p_t[8]
     # Determine signal status based on TP and FN
-    if TP > 500:
-        signal_status = 1
-    elif FN > 100:
-        signal_status = 0
+    if anomalies > 200:
+        signal_prediction = 1
     else:
         # This case is for when TP <= 500 and FN <= 100
-        signal_status = 0 if FN > 0 else 1
-    
+        signal_prediction = 0 
+
+ # Determine actual_label based on the labels
+    if np.any(label == 1):
+        actual_label = 'Signal'
+    else:
+        actual_label = 'Noise'
+		
+    if signal_prediction == 1:
+        if actual_label == 'Signal':
+	        correct_pred_count = 1
+	        predict_label = 'Signal'
+        elif actual_label == 'Noise':
+	        correct_pred_count = 0
+	        predict_label = 'Signal'
+	        False_alarm=1
+    else:
+        if actual_label == 'Noise':
+	        correct_pred_count = 1
+	        predict_label = 'Noise'
+        elif actual_label == 'Signal':
+	        correct_pred_count = 0
+	        predict_label = 'Noise'
+
     results = {
         'f1': p_t[0],
         'precision': p_t[1],
@@ -214,7 +242,9 @@ def pot_eval(min_top_score, init_score, score, label, q=1e-5, level=0.02):
         'FN': FN,
         'ROC/AUC': p_t[7],
         'threshold': pot_th,
-        'signal_status': signal_status  # Add the signal status to the results
+        'Signal prediction': predict_label,
+        'True signal label': actual_label,
+		'anomalies': p_t[8] #Add the signal status to the results
     }
     
     # Save results to a file
@@ -224,6 +254,6 @@ def pot_eval(min_top_score, init_score, score, label, q=1e-5, level=0.02):
     # np.savetxt('predictions.txt', pred, fmt='%f', delimiter=',')
     
     # Print the signal status
-    print(f"Signal Classification: {signal_status}")
+    print(f"Signal prediction: {signal_prediction}")
     
-    return results, np.array(pred), signal_status
+    return results, np.array(pred), actual_label,correct_pred_count,False_alarm
