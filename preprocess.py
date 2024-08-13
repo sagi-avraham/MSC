@@ -225,13 +225,16 @@ def load_data(dataset):
         train = pd.read_csv(os.path.join(dataset_folder, 'train_data.csv'))
         test = pd.read_csv(os.path.join(dataset_folder, 'test_data.csv'))
         testlabels=pd.read_csv(os.path.join(dataset_folder, 'test_labels.csv'))
-		
+        coinlabels=pd.read_csv(os.path.join(dataset_folder, 'coincidence_test_labels.csv'))
+        coindata=pd.read_csv(os.path.join(dataset_folder, 'coincidence_test_data.csv'))
+	
         # Correct the assignment statement
         train = train.values[:, :].astype(float)
         test = test.values[:, :].astype(float)
         labels = labels.values[:, :].astype(float)
         testlabels = testlabels.values[:, :].astype(float)
-    
+        coinlabels = coinlabels.values[:, :].astype(float)
+        coindata = coindata.values[:, :].astype(float)
         train, min_a, max_a = normalize3(train)
         test, _, _ = normalize3(test, min_a, max_a)
     
@@ -244,7 +247,7 @@ def load_data(dataset):
             else:
                 print('no signal')
         # Save the labels, train, and test datasets for each label column
-        for file in ['train', 'test', 'labels','testlabels']:
+        for file in ['train', 'test', 'labels','testlabels','coinlabels','coindata']:
             print('LABELS', labels)
             print('Labels shape is',labels)
             np.save(os.path.join(folder, f'{file}.npy'), eval(file))

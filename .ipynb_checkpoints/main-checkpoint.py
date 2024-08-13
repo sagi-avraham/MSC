@@ -38,7 +38,7 @@ def load_dataset(dataset):
 	if not os.path.exists(folder):
 		raise Exception('Processed Data not found.')
 	loader = []
-	for file in ['train', 'test', 'labels','testlabels']:
+	for file in ['train', 'test', 'labels','testlabels','coindata','coinlabels']:
 		if dataset == 'SMD': file = 'machine-1-1_' + file
 		if dataset == 'SMAP': file = 'P-1_' + file
 		if dataset == 'MSL': file = 'C-1_' + file
@@ -50,12 +50,14 @@ def load_dataset(dataset):
 	if args.less: loader[0] = cut_array(0.2, loader[0])
 	train_loader = DataLoader(loader[0], batch_size=loader[0].shape[0])
 	test_loader = DataLoader(loader[1], batch_size=loader[1].shape[0])
+	coin_loader = DataLoader(loader[2], batch_size=loader[2].shape[0])
 	labels = loader[2]
 	testlabels=loader[3].T
+	coinlabels=loader[4].T
 	print(test_loader)
 	print(test_loader)
 	print('testlabels@@@@@@@@@@@@',testlabels)
-	return train_loader, test_loader, labels
+	return train_loader, test_loader, labels,coin_loader,coinlabels
 
 def save_model(model, optimizer, scheduler, epoch, accuracy_list):
 	folder = f'checkpoints/{args.model}_{args.dataset}/'
@@ -152,16 +154,16 @@ def backprop(epoch, model, data, dataO, optimizer, scheduler, training = True):
 
 
 if __name__ == '__main__':
-	train_loader, test_loader, labels = load_dataset(args.dataset)
+	train_loader, test_loader, labels,coin_loader,coinlabels = load_dataset(args.dataset)
 	if args.model in ['MERLIN']:
 		eval(f'run_{args.model.lower()}(test_loader, labels, args.dataset)')
 	model, optimizer, scheduler, epoch, accuracy_list = load_model(args.model, labels.shape[1])
 
 	## Prepare data
-	trainD, testD = next(iter(train_loader)), next(iter(test_loader))
-	trainO, testO = trainD, testD
+	trainD, testD,coinD = next(iter(train_loader)), next(iter(test_loader)),next(iter(coin_loader))
+	trainO, testO,coinO = trainD, testD,coinD
 	if model.name in ['Attention', 'DAGMM', 'USAD', 'MSCRED', 'CAE_M', 'GDN', 'MTAD_GAT', 'MAD_GAN'] or 'TranAD' in model.name: 
-		trainD, testD = convert_to_windows(trainD, model), convert_to_windows(testD, model)
+		trainD, testD,coinD = convert_to_windows(trainD, model), convert_to_windows(testD, model),convert_to_windows(coinD, model)
 
 	### Training phase
 	if not args.test:
@@ -176,11 +178,13 @@ if __name__ == '__main__':
 
 	### Testing phase
 	labels=testlabels.T
+	coinlabels=coinlabels.T
 	#print('labels on 344 shape is',labels.shape)
 	torch.zero_grad = True
 	model.eval()
 	print(f'{color.HEADER}Testing {args.model} on {args.dataset}{color.ENDC}')
 	loss, y_pred = backprop(0, model, testD, testO, optimizer, scheduler, training=False)
+	loss_coin, y_pred_coin = backprop(0, model, coinD, coinO, optimizer, scheduler, training=False)
 	
 	###Plot curves
 	if not args.test:
@@ -188,16 +192,25 @@ if __name__ == '__main__':
 		print('TEST O IS:',testO)
 		print('Y PRED IS:',y_pred)
 		plotter(f'{args.model}_{args.dataset}', testO, y_pred, loss, labels)
+		plotter(f'{args.model}_{args.dataset} COIN', coinO, y_pred_coin, loss_coin, coinlabels)
 	
 	### Scores
 	df = pd.DataFrame()
+	df_coin = pd.DataFrame()
 	lossT, _ = backprop(0, model, trainD, trainO, optimizer, scheduler, training=False)
+	lossT_coin, _ = backprop(0, model, coinD, coinO, optimizer, scheduler, training=False)
 	accumulated_scores = np.array([])
 	accumulated_noise_scores=np.array([])
 	noise_scores=np.array([])
 	min_top_score=np.array([])
+
+	accumulated_scores_coin = np.array([])
+	accumulated_noise_scores_coin=np.array([])
+	noise_scores_coin=np.array([])
+	min_top_score_coin=np.array([])
 	for i in range(loss.shape[1]):
 	    lt, l, ls = lossT[:, i], loss[:, i], labels[:, i]
+	    lt_coin, l_coin, ls_coin = lossT_coin[:, i], loss_coin[:, i], coinlabels[:, i]
 	    #print("Loss T IS", lt.shape)
 	    #print(lt)
 	    #print("Loss IS", l.shape)
@@ -206,12 +219,14 @@ if __name__ == '__main__':
 	   # print(ls)
 	    #write_anomaly_to_file(score,label,file_path)
 	    updated_scores, noise_scores,min_top_score = pot_scores(lt, l, ls)
+	    updated_scores_coin, noise_scores_coin,min_top_score_coin = pot_scores(lt_coin, l_coin, ls_coin)
         
         # Flatten updated_scores if it's multidimensional
 	    #updated_scores = np.ravel(updated_scores)
 	    #noise_scores=np.ravel(noise_scores)
         # Append the updated scores to the accumulated_scores array
 	    accumulated_scores = np.concatenate((accumulated_scores, updated_scores))
+	    accumulated_scores_coin = np.concatenate((accumulated_scores_coin, updated_scores_coin))
 	    #accumulated_noise_scores= np.concatenate((accumulated_noise_scores,test))
 	#    print('THE MIN TOP SCORE IS',min_top_score)
 	
@@ -220,13 +235,21 @@ if __name__ == '__main__':
 	correct_pred_count=[]
 	FAR_count=[]
 	False_alarms=[]
+
+	signal_prediction_coin=[]
+	classification_coin=[]
+	correct_pred_count_coin=[]
+	FAR_count_coin=[]
+	False_alarms_coin=[]
 	for i in range(loss.shape[1]):
 	    result, pred , classification,correct_count,FAR_count= pot_eval(min_top_score,lt, l, ls)
+	    result_coin, pred , classification_coin,correct_count_coin,FAR_count_coin= pot_eval(min_top_score_coin,lt_coin, l_coin, ls_coin)
 
 	    if isinstance(result, dict):
 	        # Handle result if it's a dictionary
 	        # Example: Convert dictionary to DataFrame with proper columns
 	        result_df = pd.DataFrame.from_dict(result, orient='index', columns=['Column_Name'])
+	        result_df_coin = pd.DataFrame.from_dict(result_coin, orient='index', columns=['Column_Name'])
 	    elif isinstance(result, (list, np.ndarray)):
 	        # Handle result if it's a list or numpy array
 	        # Example: Convert list or numpy array to DataFrame with proper columns
@@ -239,33 +262,26 @@ if __name__ == '__main__':
 	        raise ValueError("Unsupported type for result")
 	
 	    df = pd.concat([df, result_df], ignore_index=True)
+	    df_coin = pd.concat([df_coin, result_df_coin], ignore_index=True)
 	for i in range(loss.shape[1]):
 	    lt, l, ls = lossT[:, i], loss[:, i], labels[:, i]
+	    lt_coin, l_coin, ls_coin = lossT_coin[:, i], loss_coin[:, i], coinlabels[:, i]
 	    print(i)
-	   # print('loss is',loss.shape)
-	 #   print('labels is',len(labels[:, i]))
 	    result, pred,classification,correct_count,False_alarm = pot_eval(min_top_score,lt, l, ls)
+	    result_coin, pred_coin,classification_coin,correct_count_coin,False_alarm_coin = pot_eval(min_top_score_coin,lt_coin, l_coin, ls_coin)
 	    FAR_count=FAR_count+False_alarm
+	    FAR_count_coin=FAR_count_coin+False_alarm_coin
 	    correct_pred_count.append(correct_count)
+	    correct_pred_count_coin.append(correct_count_coin)
 	    if isinstance(result, dict):
 	       # print('its dict')
 	        # Handle result if it's a dictionary
 	        # Example: Convert dictionary to DataFrame with proper columns
 	        result_df = pd.DataFrame.from_dict(result, orient='index', columns=['Column_Name'])
-	    elif isinstance(result, (list, np.ndarray)):
-	        # Handle result if it's a list or numpy array
-	        # Example: Convert list or numpy array to DataFrame with proper columns
-	        print('NUMPY')
-	        result_df = pd.DataFrame(result, columns=['Column_Name'])
-	    elif isinstance(result, pd.DataFrame):
-	        # If result is already a DataFrame, use it directly
-	        print('already df')
-	        result_df = result
-	    else:
-	        # Handle other cases as needed
-	        raise ValueError("Unsupported type for result")
+	        result_df_coin = pd.DataFrame.from_dict(result_coin, orient='index', columns=['Column_Name'])
 	
 	    df = pd.concat([df, result_df], ignore_index=True)
+	    df_coin = pd.concat([df_coin, result_df_coin], ignore_index=True)
 	
 		# preds = np.concatenate([i.reshape(-1, 1) + 0 for i in preds], axis=1)
 		# pd.DataFrame(preds, columns=[str(i) for i in range(10)]).to_csv('labels.csv')
