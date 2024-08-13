@@ -221,10 +221,11 @@ def load_data(dataset):
         dataset_folder = 'data/STRAIN'
         
         # Reading the datasets
-        labels = pd.read_csv(os.path.join(dataset_folder, 'labels.csv'))
-        train = pd.read_csv(os.path.join(dataset_folder, 'train.csv'))
-        test = pd.read_csv(os.path.join(dataset_folder, 'test.csv'))
+        labels = pd.read_csv(os.path.join(dataset_folder, 'train_labels.csv'))
+        train = pd.read_csv(os.path.join(dataset_folder, 'train_data.csv'))
+        test = pd.read_csv(os.path.join(dataset_folder, 'test_data.csv'))
         testlabels=pd.read_csv(os.path.join(dataset_folder, 'test_labels.csv'))
+		
         # Correct the assignment statement
         train = train.values[:, :].astype(float)
         test = test.values[:, :].astype(float)

@@ -51,7 +51,7 @@ def load_dataset(dataset):
 	train_loader = DataLoader(loader[0], batch_size=loader[0].shape[0])
 	test_loader = DataLoader(loader[1], batch_size=loader[1].shape[0])
 	labels = loader[2]
-	testlabels=loader[3]
+	testlabels=loader[3].T
 	print(test_loader)
 	print(test_loader)
 	print('testlabels@@@@@@@@@@@@',testlabels)
