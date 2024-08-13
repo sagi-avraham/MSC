@@ -26,7 +26,7 @@ def pot_scores(init_score, score, label, file_path='anomaly/anomalyscores.txt', 
     """
     # print('Testing POT method...')
 
-    fraction = 0.0001
+    fraction = 0.001
     print('fraction is',fraction)# Define the fraction of top scores to consider, high value gives more false negatives and lower gives higher false positives
     lms = lm[0]  # Assuming lm is defined in src.constants
     scores_array = []  # Initialize the list to store scores
