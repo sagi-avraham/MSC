@@ -57,7 +57,7 @@ def load_dataset(dataset):
 	print(test_loader)
 	print(test_loader)
 	print('coin labels@@@@@@@@@@@@',coinlabels)
-	input('press enter')
+	#input('press enter')
 	return train_loader, test_loader, labels,coin_loader,coinlabels
 
 def save_model(model, optimizer, scheduler, epoch, accuracy_list):
