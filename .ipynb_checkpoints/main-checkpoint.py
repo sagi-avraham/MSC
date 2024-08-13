@@ -50,13 +50,14 @@ def load_dataset(dataset):
 	if args.less: loader[0] = cut_array(0.2, loader[0])
 	train_loader = DataLoader(loader[0], batch_size=loader[0].shape[0])
 	test_loader = DataLoader(loader[1], batch_size=loader[1].shape[0])
-	coin_loader = DataLoader(loader[2], batch_size=loader[2].shape[0])
+	coin_loader = DataLoader(loader[4], batch_size=loader[2].shape[0])
 	labels = loader[2]
 	testlabels=loader[3].T
-	coinlabels=loader[4].T
+	coinlabels=loader[5].T
 	print(test_loader)
 	print(test_loader)
-	print('testlabels@@@@@@@@@@@@',testlabels)
+	print('coin labels@@@@@@@@@@@@',coinlabels)
+	input('press enter')
 	return train_loader, test_loader, labels,coin_loader,coinlabels
 
 def save_model(model, optimizer, scheduler, epoch, accuracy_list):
@@ -153,6 +154,8 @@ def backprop(epoch, model, data, dataO, optimizer, scheduler, training = True):
 			return loss.detach().numpy(), y_pred.detach().numpy()
 
 
+
+
 if __name__ == '__main__':
 	train_loader, test_loader, labels,coin_loader,coinlabels = load_dataset(args.dataset)
 	if args.model in ['MERLIN']:
@@ -192,6 +195,12 @@ if __name__ == '__main__':
 		print('TEST O IS:',testO)
 		print('Y PRED IS:',y_pred)
 		plotter(f'{args.model}_{args.dataset}', testO, y_pred, loss, labels)
+		
+	if not args.test:
+		if 'TranAD' in model.name: coinO = torch.roll(coinO, 1, 0) 
+		print('TEST O IS:',testO)
+		print('Y PRED IS:',y_pred)
+
 		plotter(f'{args.model}_{args.dataset} COIN', coinO, y_pred_coin, loss_coin, coinlabels)
 	
 	### Scores
@@ -220,7 +229,7 @@ if __name__ == '__main__':
 	    #write_anomaly_to_file(score,label,file_path)
 	    updated_scores, noise_scores,min_top_score = pot_scores(lt, l, ls)
 	    updated_scores_coin, noise_scores_coin,min_top_score_coin = pot_scores(lt_coin, l_coin, ls_coin)
-        
+	    #min_top_score_coin=min_top_score
         # Flatten updated_scores if it's multidimensional
 	    #updated_scores = np.ravel(updated_scores)
 	    #noise_scores=np.ravel(noise_scores)
@@ -243,7 +252,7 @@ if __name__ == '__main__':
 	False_alarms_coin=[]
 	for i in range(loss.shape[1]):
 	    result, pred , classification,correct_count,FAR_count= pot_eval(min_top_score,lt, l, ls)
-	    result_coin, pred , classification_coin,correct_count_coin,FAR_count_coin= pot_eval(min_top_score_coin,lt_coin, l_coin, ls_coin)
+	    result_coin, pred , classification_coin,correct_count_coin,FAR_count_coin= pot_eval(min_top_score,lt_coin, l_coin, ls_coin)
 
 	    if isinstance(result, dict):
 	        # Handle result if it's a dictionary
@@ -268,7 +277,7 @@ if __name__ == '__main__':
 	    lt_coin, l_coin, ls_coin = lossT_coin[:, i], loss_coin[:, i], coinlabels[:, i]
 	    print(i)
 	    result, pred,classification,correct_count,False_alarm = pot_eval(min_top_score,lt, l, ls)
-	    result_coin, pred_coin,classification_coin,correct_count_coin,False_alarm_coin = pot_eval(min_top_score_coin,lt_coin, l_coin, ls_coin)
+	    result_coin, pred_coin,classification_coin,correct_count_coin,False_alarm_coin = pot_eval(min_top_score,lt_coin, l_coin, ls_coin)
 	    FAR_count=FAR_count+False_alarm
 	    FAR_count_coin=FAR_count_coin+False_alarm_coin
 	    correct_pred_count.append(correct_count)
@@ -287,6 +296,9 @@ if __name__ == '__main__':
 		# pd.DataFrame(preds, columns=[str(i) for i in range(10)]).to_csv('labels.csv')
 	    lossTfinal, lossFinal = np.mean(lossT, axis=1), np.mean(loss, axis=1)
 	    labelsFinal = (np.sum(labels, axis=1) >= 1) + 0
+
+	    lossTfinal_coin, lossFinal_coin = np.mean(lossT_coin, axis=1), np.mean(loss_coin, axis=1)
+	    labelsFinal_coin = (np.sum(coinlabels, axis=1) >= 1) + 0
        # print('lossTfinal is : ',lossTfinal.shape)
      #   print('lossfina; is : ',lossFinal.shape)
       #  print('labels final is : ',labelsFinal.shape)
@@ -295,6 +307,7 @@ if __name__ == '__main__':
 	   # result.update(ndcg(loss, labels))
 		# print(df)
 	    print(result)
+	    print("RESULT COIN",result_coin)
 	    print("\n")
 		# pprint(getresults2(df, result))
 		# beep(4)
@@ -302,7 +315,13 @@ if __name__ == '__main__':
 	correct_pred_count_sum=np.sum(correct_pred_count)
 	classification_rate = (correct_pred_count_sum / len(correct_pred_count)) * 100
 
+	correct_pred_count_sum_coin=np.sum(correct_pred_count_coin)
+	classification_rate_coin = (correct_pred_count_sum_coin/ len(correct_pred_count_coin)) * 100
+
 	# Print the classification rate
 
 	print(f'Correct classification rate: {classification_rate:.2f}%')
 	print('false alarm rate',FAR_count)
+
+	print(f'Correct classification rate for coincidence data: {classification_rate_coin:.2f}%')
+	print('false alarm rate for coincidence data',FAR_count)
