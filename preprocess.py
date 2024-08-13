@@ -221,9 +221,9 @@ def load_data(dataset):
         dataset_folder = 'data/STRAIN'
         
         # Reading the datasets
-        labels = pd.read_csv(os.path.join(dataset_folder, 'train_labels.csv'))
-        train = pd.read_csv(os.path.join(dataset_folder, 'train_data.csv'))
-        test = pd.read_csv(os.path.join(dataset_folder, 'test_data.csv'))
+        labels = pd.read_csv(os.path.join(dataset_folder, 'labels.csv'))
+        train = pd.read_csv(os.path.join(dataset_folder, 'train.csv'))
+        test = pd.read_csv(os.path.join(dataset_folder, 'test.csv'))
         testlabels=pd.read_csv(os.path.join(dataset_folder, 'test_labels.csv'))
         # Correct the assignment statement
         train = train.values[:, :].astype(float)
@@ -237,7 +237,7 @@ def load_data(dataset):
         # Process each column in labels and normalize accordingly
         # for i, label_col in enumerate(labels.columns):
         # label_data = labels[label_col].values.astype(float).reshape(-1, 1)
-        for i in range(0,1):
+        for i in range(0,9):
             if np.any(testlabels[i]==1):
                 print('signal')
             else:
