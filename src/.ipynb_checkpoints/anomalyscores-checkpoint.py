@@ -3,17 +3,19 @@ from src.spot import SPOT
 from src.constants import lm
 from sklearn.metrics import roc_auc_score
 import os
+import time  # Import time for time-related functions
 
 scores_array = []
 file_path = 'anomaly/anomalyscores.txt'
+
 def pot_scores(init_score, score, label, file_path='anomaly/anomalyscores.txt', q=1e-5, level=0.02):
     """
     Run POT method on given score.
     Args:
         init_score (np.ndarray): The data to get init threshold.
-            it should be the anomaly score of train set.
+            It should be the anomaly score of the train set.
         score (np.ndarray): The data to run POT method.
-            it should be the anomaly score of test set.
+            It should be the anomaly score of the test set.
         label (np.ndarray): The ground-truth labels.
         file_path (str): Path to the file where scores will be written.
         q (float): Detection level (risk).
@@ -26,8 +28,9 @@ def pot_scores(init_score, score, label, file_path='anomaly/anomalyscores.txt', 
     """
     # print('Testing POT method...')
 
-    fraction = 0.000005
-    print('fraction is',fraction)# Define the fraction of top scores to consider, high value gives more false negatives and lower gives higher false positives
+    fraction = 0.0000005
+    print('fraction is', fraction)  # Define the fraction of top scores to consider
+
     lms = lm[0]  # Assuming lm is defined in src.constants
     scores_array = []  # Initialize the list to store scores
 
@@ -45,9 +48,6 @@ def pot_scores(init_score, score, label, file_path='anomaly/anomalyscores.txt', 
     # Ensure `score` is a NumPy array
     score = np.asarray(score)
     
-    # print('@@@@@ SCORE IS:', score)
-    # print('Score length is', len(score))
-    
     # Sort the scores array in descending order
     sorted_scores = np.sort(score)[::-1]
     
@@ -60,17 +60,20 @@ def pot_scores(init_score, score, label, file_path='anomaly/anomalyscores.txt', 
     # Determine the lowest value in the top scores
     min_top_score = np.min(top_scores)
 
+    # Check if file exists and delete it if it's older than 30 seconds
+    if os.path.exists(file_path):
+        file_mod_time = os.path.getmtime(file_path)
+        current_time = time.time()
+        
+        if (current_time - file_mod_time) > 30:
+            os.remove(file_path)
+    
+    # Create directory if it does not exist
+    if not os.path.exists(os.path.dirname(file_path)):
+        os.makedirs(os.path.dirname(file_path))
+
     # Write scores to file only if all labels are 0
     if np.all(label == 0):
-        # Check if file exists and delete it
-        if os.path.exists(file_path):
-            os.remove(file_path)
-        
-        # Create directory if it does not exist
-        if not os.path.exists(os.path.dirname(file_path)):
-            os.makedirs(os.path.dirname(file_path))
-        
-        # Write scores to file
         with open(file_path, 'a') as file:
             for s in score:
                 file.write(f"{s}\n")

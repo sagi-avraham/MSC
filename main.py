@@ -209,7 +209,7 @@ if __name__ == '__main__':
 	lossT, _ = backprop(0, model, trainD, trainO, optimizer, scheduler, training=False)
 	lossT_coin, _ = backprop(0, model, coinD, coinO, optimizer, scheduler, training=False)
 	accumulated_scores = np.array([])
-	accumulated_noise_scores=np.array([])
+	accumulated_noise_scores=[]
 	noise_scores=np.array([])
 	min_top_score=np.array([])
 
@@ -228,6 +228,10 @@ if __name__ == '__main__':
 	   # print(ls)
 	    #write_anomaly_to_file(score,label,file_path)
 	    updated_scores, noise_scores,min_top_score = pot_scores(lt, l, ls)
+	    print('len noise_score',len(noise_scores))
+	    accumulated_noise_scores.extend(noise_scores)
+	    #input('21312')
+	 #   accumulated_noise_scores.append(noise_scores)
 	    updated_scores_coin, noise_scores_coin,min_top_score_coin = pot_scores(lt_coin, l_coin, ls_coin)
 	    #min_top_score_coin=min_top_score
         # Flatten updated_scores if it's multidimensional
@@ -238,7 +242,20 @@ if __name__ == '__main__':
 	    accumulated_scores_coin = np.concatenate((accumulated_scores_coin, updated_scores_coin))
 	    #accumulated_noise_scores= np.concatenate((accumulated_noise_scores,test))
 	#    print('THE MIN TOP SCORE IS',min_top_score)
-	
+	#accumulated_noise_scores=np.ravel(accumulated_noise_scores)
+	#print('accumulatee noise scores is',len(accumulated_noise_scores))
+	# Sort the scores array in descending order
+	fraction=0.001 #when reducing amplitude reduce this fraction
+	sorted_scores = np.sort(accumulated_noise_scores)[::-1]
+    
+    # Calculate the number of scores to consider for the top fraction
+	top_count = max(1, int(len(sorted_scores) * fraction))
+    
+    # Get the top scores
+	top_scores = sorted_scores[:top_count]
+    
+    # Determine the lowest value in the top scores
+	min_top_score = np.min(top_scores)
 	signal_prediction=[]
 	classification=[]
 	correct_pred_count=[]
@@ -250,9 +267,11 @@ if __name__ == '__main__':
 	correct_pred_count_coin=[]
 	FAR_count_coin=[]
 	False_alarms_coin=[]
+	combined_correct_pred_count=0
+	combined_far=0
 	for i in range(loss.shape[1]):
-	    result, pred , classification,correct_count,FAR_count= pot_eval(min_top_score,lt, l, ls)
-	    result_coin, pred , classification_coin,correct_count_coin,FAR_count_coin= pot_eval(min_top_score,lt_coin, l_coin, ls_coin)
+	    result, pred , classification,correct_count,FAR_count,signal_prediction= pot_eval(min_top_score,lt, l, ls)
+	    result_coin, pred , classification_coin,correct_count_coin,FAR_count_coin,signal_prediction_coin= pot_eval(min_top_score,lt_coin, l_coin, ls_coin)
 
 	    if isinstance(result, dict):
 	        # Handle result if it's a dictionary
@@ -276,12 +295,40 @@ if __name__ == '__main__':
 	    lt, l, ls = lossT[:, i], loss[:, i], labels[:, i]
 	    lt_coin, l_coin, ls_coin = lossT_coin[:, i], loss_coin[:, i], coinlabels[:, i]
 	    print(i)
-	    result, pred,classification,correct_count,False_alarm = pot_eval(min_top_score,lt, l, ls)
-	    result_coin, pred_coin,classification_coin,correct_count_coin,False_alarm_coin = pot_eval(min_top_score,lt_coin, l_coin, ls_coin)
+	    result, pred,classification,correct_count,False_alarm,signal_prediction = pot_eval(min_top_score,lt, l, ls)
+	    result_coin, pred_coin,classification_coin,correct_count_coin,False_alarm_coin,signal_prediction_coin = pot_eval(min_top_score,lt_coin, l_coin, ls_coin)
+
+		
+
 	    FAR_count=FAR_count+False_alarm
 	    FAR_count_coin=FAR_count_coin+False_alarm_coin
+
 	    correct_pred_count.append(correct_count)
 	    correct_pred_count_coin.append(correct_count_coin)
+		
+	
+	    # Check if the current label is 1
+	    is_label_one = np.any(labels[:, i] == 1)
+	    # Check if the current label is 0
+	    is_label_zero = np.all(labels[:, i] == 0)
+	    
+	    # Conditions for predictions and counts
+	    if np.any(labels[:, i] == 1)  :
+	        if signal_prediction == 1 and signal_prediction_coin == 1:
+	            combined_correct_pred_count = combined_correct_pred_count + 1
+	        #elif signal_prediction == 0 and signal_prediction_coin == 0:
+	           # combined_far = combined_far + 1
+	    
+	    elif is_label_zero:
+	        if signal_prediction == 0 and signal_prediction_coin == 0:
+	            combined_correct_pred_count = combined_correct_pred_count + 1
+	        elif signal_prediction == 1 and signal_prediction_coin == 1:
+	            combined_far = combined_far + 1
+	      
+			
+	
+		
+			
 	    if isinstance(result, dict):
 	       # print('its dict')
 	        # Handle result if it's a dictionary
@@ -314,7 +361,7 @@ if __name__ == '__main__':
 	# Count the number of correct classifications
 	correct_pred_count_sum=np.sum(correct_pred_count)
 	classification_rate = (correct_pred_count_sum / len(correct_pred_count)) * 100
-
+	combined_classification_rate = (combined_correct_pred_count / len(correct_pred_count)) * 100
 	correct_pred_count_sum_coin=np.sum(correct_pred_count_coin)
 	classification_rate_coin = (correct_pred_count_sum_coin/ len(correct_pred_count_coin)) * 100
 
@@ -325,3 +372,6 @@ if __name__ == '__main__':
 
 	print(f'Correct classification rate for coincidence data: {classification_rate_coin:.2f}%')
 	print('false alarm rate for coincidence data',FAR_count)
+	
+	print(f'combined correct classification rate: {combined_classification_rate:.2f}%')
+	print('combined false alarms is',combined_far)
