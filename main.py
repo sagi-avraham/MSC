@@ -21,7 +21,7 @@ from src.constants import *
 from sklearn.metrics import *
 import os
 ROCFilename='ROC PLOT'
-
+output_filename='ROC PLOT'
 def compute_and_plot_roc(true_positive, false_positive, ROCFilename):
     """
     Computes and plots the ROC curve.
@@ -36,7 +36,7 @@ def compute_and_plot_roc(true_positive, false_positive, ROCFilename):
   #  fpr = false_positive.flatten()
     tpr=true_positive
     fpr=false_positive
-	#print('TPR AND FPR IS',tpr,f)
+    print('TPR AND FPR IS',tpr,fpr)
     # Compute ROC curve
     #fpr, tpr, _ = roc_curve(true_positive, false_positive)
     roc_auc = auc(fpr, tpr)
@@ -89,7 +89,7 @@ def load_dataset(dataset):
 	coinlabels=loader[5].T
 	print(test_loader)
 	print(test_loader)
-	print('coin labels@@@@@@@@@@@@',coinlabels)
+	#print('coin labels@@@@@@@@@@@@',coinlabels)
 	#input('press enter')
 	return train_loader, test_loader, labels,coin_loader,coinlabels
 
@@ -164,8 +164,8 @@ def backprop(epoch, model, data, dataO, optimizer, scheduler, training = True):
 				z = model(window, elem)
 				if isinstance(z, tuple): z = z[1]
 			loss = l(z, elem)[0]
-			print('LOSS IS',loss)
-			print('LOSS IS',loss.shape)
+		##	print('LOSS IS',loss)
+		#	print('LOSS IS',loss.shape)
 			return loss.detach().numpy(), z.detach().numpy()[0]
 	else:
 		print('DATA IN BACK PROP IS:',data)
@@ -225,14 +225,14 @@ if __name__ == '__main__':
 	###Plot curves
 	if not args.test:
 		if 'TranAD' in model.name: testO = torch.roll(testO, 1, 0) 
-		print('TEST O IS:',testO)
-		print('Y PRED IS:',y_pred)
+		#print('TEST O IS:',testO)
+		#print('Y PRED IS:',y_pred)
 		plotter(f'{args.model}_{args.dataset}', testO, y_pred, loss, labels)
 		
 	if not args.test:
 		if 'TranAD' in model.name: coinO = torch.roll(coinO, 1, 0) 
-		print('TEST O IS:',testO)
-		print('Y PRED IS:',y_pred)
+		#print('TEST O IS:',testO)
+		#print('Y PRED IS:',y_pred)
 
 		plotter(f'{args.model}_{args.dataset} COIN', coinO, y_pred_coin, loss_coin, coinlabels)
 	
@@ -250,6 +250,7 @@ if __name__ == '__main__':
 	accumulated_noise_scores_coin=np.array([])
 	noise_scores_coin=np.array([])
 	min_top_score_coin=np.array([])
+	fraction=0.1
 	for i in range(loss.shape[1]):
 	    lt, l, ls = lossT[:, i], loss[:, i], labels[:, i]
 	    lt_coin, l_coin, ls_coin = lossT_coin[:, i], loss_coin[:, i], coinlabels[:, i]
@@ -278,143 +279,157 @@ if __name__ == '__main__':
 	#accumulated_noise_scores=np.ravel(accumulated_noise_scores)
 	#print('accumulatee noise scores is',len(accumulated_noise_scores))
 	# Sort the scores array in descending order
-	fraction=0.001 #when reducing amplitude reduce this fraction
+	
+	
 	sorted_scores = np.sort(accumulated_noise_scores)[::-1]
+	for i in range(0,2):
+		signal_prediction=[]
+		classification=[]
+		correct_pred_count=[]
+		FAR_count=[]
+		False_alarms=[]
+
+		signal_prediction_coin=[]
+		classification_coin=[]
+		correct_pred_count_coin=[]
+		FAR_count_coin=[]
+		False_alarms_coin=[]
+		combined_correct_pred_count=0
+		combined_far=0
+		true_positive = np.zeros((loss.shape[1],))
+		false_positive = np.zeros((loss.shape[1],))
+		true_positive_count=0
+		false_positive_count=0
+		TP=[]
+		FP=[]
+		fraction=fraction/2 #when reducing amplitude reduce this fraction
+	#	sorted_scores = np.sort(accumulated_noise_scores)[::-1]
     
-    # Calculate the number of scores to consider for the top fraction
-	top_count = max(1, int(len(sorted_scores) * fraction))
-    
-    # Get the top scores
-	top_scores = sorted_scores[:top_count]
-    
-    # Determine the lowest value in the top scores
-	min_top_score = np.min(top_scores)
-	signal_prediction=[]
-	classification=[]
-	correct_pred_count=[]
-	FAR_count=[]
-	False_alarms=[]
-
-	signal_prediction_coin=[]
-	classification_coin=[]
-	correct_pred_count_coin=[]
-	FAR_count_coin=[]
-	False_alarms_coin=[]
-	combined_correct_pred_count=0
-	combined_far=0
-	false_positive=[]
-	true_positive=[]
-	TP=[]
-	FP=[]
-	for i in range(loss.shape[1]):
-	    result, pred , classification,correct_count,FAR_count,signal_prediction,TP,FP= pot_eval(min_top_score,lt, l, ls)
-	    result_coin, pred , classification_coin,correct_count_coin,FAR_count_coin,signal_prediction_coin,TP,FP= pot_eval(min_top_score,lt_coin, l_coin, ls_coin)
-
-	    if isinstance(result, dict):
-	        # Handle result if it's a dictionary
-	        # Example: Convert dictionary to DataFrame with proper columns
-	        result_df = pd.DataFrame.from_dict(result, orient='index', columns=['Column_Name'])
-	        result_df_coin = pd.DataFrame.from_dict(result_coin, orient='index', columns=['Column_Name'])
-	    elif isinstance(result, (list, np.ndarray)):
-	        # Handle result if it's a list or numpy array
-	        # Example: Convert list or numpy array to DataFrame with proper columns
-	        result_df = pd.DataFrame(result, columns=['Column_Name'])
-	    elif isinstance(result, pd.DataFrame):
-	        # If result is already a DataFrame, use it directly
-	        result_df = result
-	    else:
-	        # Handle other cases as needed
-	        raise ValueError("Unsupported type for result")
-	
-	    df = pd.concat([df, result_df], ignore_index=True)
-	    df_coin = pd.concat([df_coin, result_df_coin], ignore_index=True)
-	for i in range(loss.shape[1]):
-	    lt, l, ls = lossT[:, i], loss[:, i], labels[:, i]
-	    lt_coin, l_coin, ls_coin = lossT_coin[:, i], loss_coin[:, i], coinlabels[:, i]
-	    print(i)
-	    result, pred,classification,correct_count,False_alarm,signal_prediction,TP,FP = pot_eval(min_top_score,lt, l, ls)
-	    result_coin, pred_coin,classification_coin,correct_count_coin,False_alarm_coin,signal_prediction_coin,TP,FP = pot_eval(min_top_score,lt_coin, l_coin, ls_coin)
-
-		
-
-	    FAR_count=FAR_count+False_alarm
-	    FAR_count_coin=FAR_count_coin+False_alarm_coin
-
-	    correct_pred_count.append(correct_count)
-	    correct_pred_count_coin.append(correct_count_coin)
-
-	    true_positive.append(TP)
-	    false_positive.append(FP)
-		
-	
-	    # Check if the current label is 1
-	    is_label_one = np.any(labels[:, i] == 1)
-	    # Check if the current label is 0
-	    is_label_zero = np.all(labels[:, i] == 0)
+	    # Calculate the number of scores to consider for the top fraction
+		top_count = max(1, int(len(sorted_scores) * fraction))
 	    
-	    # Conditions for predictions and counts
-	    if np.any(labels[:, i] == 1)  :
-	        if signal_prediction == 1 and signal_prediction_coin == 1:
-	            combined_correct_pred_count = combined_correct_pred_count + 1
-	        #elif signal_prediction == 0 and signal_prediction_coin == 0:
-	           # combined_far = combined_far + 1
+	    # Get the top scores
+		top_scores = sorted_scores[:top_count]
 	    
-	    elif is_label_zero:
-	        if signal_prediction == 0 and signal_prediction_coin == 0:
-	            combined_correct_pred_count = combined_correct_pred_count + 1
-	        elif signal_prediction == 1 and signal_prediction_coin == 1:
-	            combined_far = combined_far + 1
-	      
-			
+	    # Determine the lowest value in the top scores
+		min_top_score = np.min(top_scores)
+		for i in range(loss.shape[1]):
+		    result, pred , classification,correct_count,FAR_count,signal_prediction,TP,FP= pot_eval(min_top_score,lt, l, ls)
+		    result_coin, pred , classification_coin,correct_count_coin,FAR_count_coin,signal_prediction_coin,TP,FP= pot_eval(min_top_score,lt_coin, l_coin, ls_coin)
 	
+		    if isinstance(result, dict):
+		        # Handle result if it's a dictionary
+		        # Example: Convert dictionary to DataFrame with proper columns
+		        result_df = pd.DataFrame.from_dict(result, orient='index', columns=['Column_Name'])
+		        result_df_coin = pd.DataFrame.from_dict(result_coin, orient='index', columns=['Column_Name'])
+		    elif isinstance(result, (list, np.ndarray)):
+		        # Handle result if it's a list or numpy array
+		        # Example: Convert list or numpy array to DataFrame with proper columns
+		        result_df = pd.DataFrame(result, columns=['Column_Name'])
+		    elif isinstance(result, pd.DataFrame):
+		        # If result is already a DataFrame, use it directly
+		        result_df = result
+		    else:
+		        # Handle other cases as needed
+		        raise ValueError("Unsupported type for result")
 		
+		    df = pd.concat([df, result_df], ignore_index=True)
+		    df_coin = pd.concat([df_coin, result_df_coin], ignore_index=True)
+		for j in range(loss.shape[1]):
+			for i in range(loss.shape[1]):
+			    lt, l, ls = lossT[:, i], loss[:, i], labels[:, i]
+			    lt_coin, l_coin, ls_coin = lossT_coin[:, i], loss_coin[:, i], coinlabels[:, i]
+			    print(i)
+			    result, pred,classification,correct_count,False_alarm,signal_prediction,TP,FP = pot_eval(min_top_score,lt, l, ls)
+			    result_coin, pred_coin,classification_coin,correct_count_coin,False_alarm_coin,signal_prediction_coin,TP,FP = pot_eval(min_top_score,lt_coin, l_coin, ls_coin)
+		
+				
+		
+			    FAR_count=FAR_count+False_alarm
+			    FAR_count_coin=FAR_count_coin+False_alarm_coin
+		
+			    correct_pred_count.append(correct_count)
+			    correct_pred_count_coin.append(correct_count_coin)
+		
+			    true_positive_count=true_positive_count+TP
+			    false_positive_count=false_positive_count+FP
+	
+				
 			
-	    if isinstance(result, dict):
-	       # print('its dict')
-	        # Handle result if it's a dictionary
-	        # Example: Convert dictionary to DataFrame with proper columns
-	        result_df = pd.DataFrame.from_dict(result, orient='index', columns=['Column_Name'])
-	        result_df_coin = pd.DataFrame.from_dict(result_coin, orient='index', columns=['Column_Name'])
-	
-	    df = pd.concat([df, result_df], ignore_index=True)
-	    df_coin = pd.concat([df_coin, result_df_coin], ignore_index=True)
-	
-		# preds = np.concatenate([i.reshape(-1, 1) + 0 for i in preds], axis=1)
-		# pd.DataFrame(preds, columns=[str(i) for i in range(10)]).to_csv('labels.csv')
-	    lossTfinal, lossFinal = np.mean(lossT, axis=1), np.mean(loss, axis=1)
-	    labelsFinal = (np.sum(labels, axis=1) >= 1) + 0
-
-	    lossTfinal_coin, lossFinal_coin = np.mean(lossT_coin, axis=1), np.mean(loss_coin, axis=1)
-	    labelsFinal_coin = (np.sum(coinlabels, axis=1) >= 1) + 0
-       # print('lossTfinal is : ',lossTfinal.shape)
-     #   print('lossfina; is : ',lossFinal.shape)
-      #  print('labels final is : ',labelsFinal.shape)
-	  #  result, _ = pot_eval(lossTfinal, lossFinal, labelsFinal)
-	#    result.update(hit_att(loss, labels))
-	   # result.update(ndcg(loss, labels))
-		# print(df)
-	    print(result)
-	    print("RESULT COIN",result_coin)
-	    print("\n")
-		# pprint(getresults2(df, result))
-		# beep(4)
-	# Count the number of correct classifications
-	correct_pred_count_sum=np.sum(correct_pred_count)
-	classification_rate = (correct_pred_count_sum / len(correct_pred_count)) * 100
-	combined_classification_rate = (combined_correct_pred_count / len(correct_pred_count)) * 100
-	correct_pred_count_sum_coin=np.sum(correct_pred_count_coin)
-	classification_rate_coin = (correct_pred_count_sum_coin/ len(correct_pred_count_coin)) * 100
-
-	# Assuming y_pred contains probabilities and labels contains ground truth binary labels
-	#compute_and_plot_roc(true_positive, false_positive, ROCFilename)
-
-	# Print the classification rate
-
+			    # Check if the current label is 1
+			    is_label_one = np.any(labels[:, i] == 1)
+			    # Check if the current label is 0
+			    is_label_zero = np.all(labels[:, i] == 0)
+			    
+			    # Conditions for predictions and counts
+			    if np.any(labels[:, i] == 1)  :
+			        if signal_prediction == 1 and signal_prediction_coin == 1:
+			            combined_correct_pred_count = combined_correct_pred_count + 1
+			        #elif signal_prediction == 0 and signal_prediction_coin == 0:
+			           # combined_far = combined_far + 1
+			    
+			    elif is_label_zero:
+			        if signal_prediction == 0 and signal_prediction_coin == 0:
+			            combined_correct_pred_count = combined_correct_pred_count + 1
+			        elif signal_prediction == 1 and signal_prediction_coin == 1:
+			            combined_far = combined_far + 1
+			    correct_pred_count_sum=np.sum(correct_pred_count)
+			    classification_rate = (correct_pred_count_sum / len(correct_pred_count)) * 100
+			    combined_classification_rate = (combined_correct_pred_count / len(correct_pred_count)) * 100
+			    correct_pred_count_sum_coin=np.sum(correct_pred_count_coin)
+			    classification_rate_coin = (correct_pred_count_sum_coin/ len(correct_pred_count_coin)) * 100
+		
+					
+			    
+				
+					
+			    if isinstance(result, dict):
+			       # print('its dict')
+			        # Handle result if it's a dictionary
+			        # Example: Convert dictionary to DataFrame with proper columns
+			        result_df = pd.DataFrame.from_dict(result, orient='index', columns=['Column_Name'])
+			        result_df_coin = pd.DataFrame.from_dict(result_coin, orient='index', columns=['Column_Name'])
+			
+			    df = pd.concat([df, result_df], ignore_index=True)
+			    df_coin = pd.concat([df_coin, result_df_coin], ignore_index=True)
+			
+				# preds = np.concatenate([i.reshape(-1, 1) + 0 for i in preds], axis=1)
+				# pd.DataFrame(preds, columns=[str(i) for i in range(10)]).to_csv('labels.csv')
+			    lossTfinal, lossFinal = np.mean(lossT, axis=1), np.mean(loss, axis=1)
+			    labelsFinal = (np.sum(labels, axis=1) >= 1) + 0
+		
+			    lossTfinal_coin, lossFinal_coin = np.mean(lossT_coin, axis=1), np.mean(loss_coin, axis=1)
+			    labelsFinal_coin = (np.sum(coinlabels, axis=1) >= 1) + 0
+		       # print('lossTfinal is : ',lossTfinal.shape)
+		     #   print('lossfina; is : ',lossFinal.shape)
+		      #  print('labels final is : ',labelsFinal.shape)
+			  #  result, _ = pot_eval(lossTfinal, lossFinal, labelsFinal)
+			#    result.update(hit_att(loss, labels))
+			   # result.update(ndcg(loss, labels))
+				# print(df)
+			    print(result)
+			    print("RESULT COIN",result_coin)
+			    print("\n")
+				# pprint(getresults2(df, result))
+				# beep(4)
+		true_positive[j]=true_positive_count
+		false_positive[j]=false_positive_count
 	print(f'Correct classification rate: {classification_rate:.2f}%')
 	print('false alarm rate',FAR_count)
-
+	
 	print(f'Correct classification rate for coincidence data: {classification_rate_coin:.2f}%')
 	print('false alarm rate for coincidence data',FAR_count)
 	
 	print(f'combined correct classification rate: {combined_classification_rate:.2f}%')
 	print('combined false alarms is',combined_far)
+		# Count the number of correct classifications
+	
+	print(f'Correct classification rate: {classification_rate:.2f}%')
+	print('false alarm rate',FAR_count)
+	
+	print(f'Correct classification rate for coincidence data: {classification_rate_coin:.2f}%')
+	print('false alarm rate for coincidence data',FAR_count)
+	
+	print(f'combined correct classification rate: {combined_classification_rate:.2f}%')
+	print('combined false alarms is',combined_far)
+	compute_and_plot_roc(true_positive, false_positive, ROCFilename)

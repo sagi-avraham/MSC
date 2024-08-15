@@ -32,21 +32,21 @@ def adjust_predicts(min_top_score,score, label,
         raise ValueError("score and label must have the same length")
     score = np.asarray(score)
     label = np.asarray(label)
-    print('LABEL IS:',label)
+   # print('LABEL IS:',label)
     latency = 0
     if pred is None:
         predict = score > min_top_score
-        print('min top score is',min_top_score)
+    #    print('min top score is',min_top_score)
     else:
         predict = pred
 
     actual = label
-    print('actual is', actual)
-    print('predict shape is', predict)
-    if np.any(actual == 1):
-        print('signal')
-    else:
-        print('no signal')
+   # print('actual is', actual)
+    #print('predict shape is', predict)
+    #if np.any(actual == 1):
+     #   print('signal')
+    #else:
+      #  print('no signal')
     anomaly_state = False
     anomaly_count = 0
     count=0
@@ -195,7 +195,7 @@ def pot_eval(min_top_score, init_score, score, label, q=1e-5, level=0.02):
     ret = s.run(dynamic=False)  # Run
     
     pot_th = np.mean(ret['thresholds']) * lm[1]
-    print('label in pot result is:', len(label))
+   # print('label in pot result is:', len(label))
     pred, p_latency = adjust_predicts(min_top_score, score, label, pot_th, calc_latency=True)
     p_t = calc_point2point(pred, label)
     
@@ -254,6 +254,6 @@ def pot_eval(min_top_score, init_score, score, label, q=1e-5, level=0.02):
     # np.savetxt('predictions.txt', pred, fmt='%f', delimiter=',')
     
     # Print the signal status
-    print(f"Signal prediction: {signal_prediction}")
-    
+   # print(f"Signal prediction: {signal_prediction}")
+    print(min_top_score)
     return results, np.array(pred), actual_label,correct_pred_count,False_alarm,signal_prediction,TP,p_t[5]

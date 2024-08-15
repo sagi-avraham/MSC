@@ -29,7 +29,7 @@ def pot_scores(init_score, score, label, file_path='anomaly/anomalyscores.txt', 
     # print('Testing POT method...')
 
     fraction = 0.0000005
-    print('fraction is', fraction)  # Define the fraction of top scores to consider
+   # print('fraction is', fraction)  # Define the fraction of top scores to consider
 
     lms = lm[0]  # Assuming lm is defined in src.constants
     scores_array = []  # Initialize the list to store scores
@@ -79,6 +79,6 @@ def pot_scores(init_score, score, label, file_path='anomaly/anomalyscores.txt', 
                 file.write(f"{s}\n")
                 scores_array.append(s)  # Append score to the list
 
-    print('min top score is', min_top_score)
+   # print('min top score is', min_top_score)
     
     return score, scores_array, min_top_score
