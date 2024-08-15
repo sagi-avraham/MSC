@@ -22,28 +22,30 @@ from sklearn.metrics import *
 import os
 ROCFilename='ROC PLOT'
 output_filename='ROC PLOT'
-def compute_and_plot_roc(true_positive, false_positive, ROCFilename):
+def compute_and_plot_roc(true_positive_rate, false_positive_rate, ROCFilename):
     """
-    Computes and plots the ROC curve.
+    Computes and plots the ROC curve from true positive rate and false positive rate.
     
     Parameters:
-    - true_labels: Ground truth binary labels.
-    - predictions: Predicted probabilities for the positive class.
-    - output_filename: Filename to save the ROC curve plot.
+    - true_positive_rate: List or array of True Positive Rate values.
+    - false_positive_rate: List or array of False Positive Rate values.
+    - ROCFilename: Filename to save the ROC curve plot.
     """
-    # Flatten labels and predictions if they are multi-dimensional
- #   tpr = true_positive.flatten()
-  #  fpr = false_positive.flatten()
-    tpr=true_positive
-    fpr=false_positive
-    print('TPR AND FPR IS',tpr,fpr)
-    # Compute ROC curve
-    #fpr, tpr, _ = roc_curve(true_positive, false_positive)
-    roc_auc = auc(fpr, tpr)
+    # Convert to numpy arrays for easier manipulation
+    tpr = np.array(true_positive_rate)
+    fpr = np.array(false_positive_rate)
+    
+    # Sort FPR and corresponding TPR values
+    sorted_indices = np.argsort(fpr)
+    fpr_sorted = fpr[sorted_indices]
+    tpr_sorted = tpr[sorted_indices]
+    
+    # Compute ROC curve (area under the curve)
+    roc_auc = auc(fpr_sorted, tpr_sorted)
     
     # Plot ROC curve
     plt.figure()
-    plt.plot(fpr, tpr, color='darkorange', lw=2, label='ROC curve (area = %0.2f)' % roc_auc)
+    plt.plot(fpr_sorted, tpr_sorted, color='darkorange', lw=2, label='ROC curve (area = %0.2f)' % roc_auc)
     plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
     plt.xlim([0.0, 1.0])
     plt.ylim([0.0, 1.05])
@@ -52,9 +54,8 @@ def compute_and_plot_roc(true_positive, false_positive, ROCFilename):
     plt.title('Receiver Operating Characteristic')
     plt.legend(loc='lower right')
     plt.grid(True)
-    plt.savefig(output_filename, format='pdf')
+    plt.savefig(ROCFilename, format='pdf')
     plt.close()
-	
 	
 def convert_to_windows(data, model):
 	windows = []; w_size = model.n_window
@@ -250,7 +251,7 @@ if __name__ == '__main__':
 	accumulated_noise_scores_coin=np.array([])
 	noise_scores_coin=np.array([])
 	min_top_score_coin=np.array([])
-	fraction=0.1
+	fraction=1
 	for i in range(loss.shape[1]):
 	    lt, l, ls = lossT[:, i], loss[:, i], labels[:, i]
 	    lt_coin, l_coin, ls_coin = lossT_coin[:, i], loss_coin[:, i], coinlabels[:, i]
@@ -296,26 +297,19 @@ if __name__ == '__main__':
 		False_alarms_coin=[]
 		combined_correct_pred_count=0
 		combined_far=0
-		true_positive = np.zeros((loss.shape[1],))
-		false_positive = np.zeros((loss.shape[1],))
+		true_positive_rate = np.zeros((30,))
+		false_positive_rate = np.zeros((30,))
 		true_positive_count=0
 		false_positive_count=0
+		true_negative_count=0
+		false_negative_count=0
 		TP=[]
 		FP=[]
-		fraction=fraction/2 #when reducing amplitude reduce this fraction
-	#	sorted_scores = np.sort(accumulated_noise_scores)[::-1]
-    
-	    # Calculate the number of scores to consider for the top fraction
-		top_count = max(1, int(len(sorted_scores) * fraction))
-	    
-	    # Get the top scores
-		top_scores = sorted_scores[:top_count]
-	    
-	    # Determine the lowest value in the top scores
-		min_top_score = np.min(top_scores)
+		TN=[]
+		FN=[]
 		for i in range(loss.shape[1]):
-		    result, pred , classification,correct_count,FAR_count,signal_prediction,TP,FP= pot_eval(min_top_score,lt, l, ls)
-		    result_coin, pred , classification_coin,correct_count_coin,FAR_count_coin,signal_prediction_coin,TP,FP= pot_eval(min_top_score,lt_coin, l_coin, ls_coin)
+		    result, pred , classification,correct_count,FAR_count,signal_prediction,TP,FP,TN,FN= pot_eval(min_top_score,lt, l, ls)
+		    result_coin, pred , classification_coin,correct_count_coin,FAR_count_coin,signal_prediction_coin,TP,FP,TN,FN= pot_eval(min_top_score,lt_coin, l_coin, ls_coin)
 	
 		    if isinstance(result, dict):
 		        # Handle result if it's a dictionary
@@ -335,14 +329,33 @@ if __name__ == '__main__':
 		
 		    df = pd.concat([df, result_df], ignore_index=True)
 		    df_coin = pd.concat([df_coin, result_df_coin], ignore_index=True)
-		for j in range(loss.shape[1]):
+		for j in range(30):
+			TP=0
+			FP=0
+			FN=0
+			TN=0
+			true_negative_count=0
+			true_positive_count=0
+			false_positive_count=0
+			false_negative_count=0
+			fraction=fraction/1.3 #when reducing amplitude reduce this fraction
+	#	sorted_scores = np.sort(accumulated_noise_scores)[::-1]
+    
+	    # Calculate the number of scores to consider for the top fraction
+			top_count = max(1, int(len(sorted_scores) * fraction))
+	    
+	    # Get the top scores
+			top_scores = sorted_scores[:top_count]
+	    
+	    # Determine the lowest value in the top scores
+			min_top_score = np.min(top_scores)
 			for i in range(loss.shape[1]):
 			    lt, l, ls = lossT[:, i], loss[:, i], labels[:, i]
 			    lt_coin, l_coin, ls_coin = lossT_coin[:, i], loss_coin[:, i], coinlabels[:, i]
 			    print(i)
-			    result, pred,classification,correct_count,False_alarm,signal_prediction,TP,FP = pot_eval(min_top_score,lt, l, ls)
-			    result_coin, pred_coin,classification_coin,correct_count_coin,False_alarm_coin,signal_prediction_coin,TP,FP = pot_eval(min_top_score,lt_coin, l_coin, ls_coin)
-		
+			    result, pred,classification,correct_count,False_alarm,signal_prediction,TP,FP,TN,FN = pot_eval(min_top_score,lt, l, ls)
+			    result_coin, pred_coin,classification_coin,correct_count_coin,False_alarm_coin,signal_prediction_coin,TP,FP,TN,FN = pot_eval(min_top_score,lt_coin, l_coin, ls_coin)
+				
 				
 		
 			    FAR_count=FAR_count+False_alarm
@@ -353,8 +366,10 @@ if __name__ == '__main__':
 		
 			    true_positive_count=true_positive_count+TP
 			    false_positive_count=false_positive_count+FP
-	
 				
+			    false_negative_count=false_negative_count+FN
+			    true_negative_count=true_negative_count+TN
+			
 			
 			    # Check if the current label is 1
 			    is_label_one = np.any(labels[:, i] == 1)
@@ -412,8 +427,9 @@ if __name__ == '__main__':
 			    print("\n")
 				# pprint(getresults2(df, result))
 				# beep(4)
-		true_positive[j]=true_positive_count
-		false_positive[j]=false_positive_count
+			true_positive_rate[j]=(true_positive_count+true_negative_count)/(true_positive_count+true_negative_count+false_negative_count)
+			false_positive_rate[j]=(false_positive_count+false_negative_count)/(false_positive_count+false_negative_count+true_negative_count)
+			print(true_positive_count,true_negative_count,false_positive_count,false_negative_count)
 	print(f'Correct classification rate: {classification_rate:.2f}%')
 	print('false alarm rate',FAR_count)
 	
@@ -432,4 +448,4 @@ if __name__ == '__main__':
 	
 	print(f'combined correct classification rate: {combined_classification_rate:.2f}%')
 	print('combined false alarms is',combined_far)
-	compute_and_plot_roc(true_positive, false_positive, ROCFilename)
+	compute_and_plot_roc(true_positive_rate, false_positive_rate, ROCFilename)

@@ -73,11 +73,11 @@ def pot_scores(init_score, score, label, file_path='anomaly/anomalyscores.txt', 
         os.makedirs(os.path.dirname(file_path))
 
     # Write scores to file only if all labels are 0
-    if np.all(label == 0):
-        with open(file_path, 'a') as file:
-            for s in score:
-                file.write(f"{s}\n")
-                scores_array.append(s)  # Append score to the list
+    #if np.all(label == 0):
+      #  with open(file_path, 'a') as file:
+    for s in score:
+                #file.write(f"{s}\n")
+	    scores_array.append(s)  # Append score to the list
 
    # print('min top score is', min_top_score)
     
