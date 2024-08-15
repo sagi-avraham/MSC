@@ -20,8 +20,41 @@ from src.spot import SPOT
 from src.constants import *
 from sklearn.metrics import *
 import os
+ROCFilename='ROC PLOT'
 
-
+def compute_and_plot_roc(true_positive, false_positive, ROCFilename):
+    """
+    Computes and plots the ROC curve.
+    
+    Parameters:
+    - true_labels: Ground truth binary labels.
+    - predictions: Predicted probabilities for the positive class.
+    - output_filename: Filename to save the ROC curve plot.
+    """
+    # Flatten labels and predictions if they are multi-dimensional
+ #   tpr = true_positive.flatten()
+  #  fpr = false_positive.flatten()
+    tpr=true_positive
+    fpr=false_positive
+	#print('TPR AND FPR IS',tpr,f)
+    # Compute ROC curve
+    #fpr, tpr, _ = roc_curve(true_positive, false_positive)
+    roc_auc = auc(fpr, tpr)
+    
+    # Plot ROC curve
+    plt.figure()
+    plt.plot(fpr, tpr, color='darkorange', lw=2, label='ROC curve (area = %0.2f)' % roc_auc)
+    plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('Receiver Operating Characteristic')
+    plt.legend(loc='lower right')
+    plt.grid(True)
+    plt.savefig(output_filename, format='pdf')
+    plt.close()
+	
 	
 def convert_to_windows(data, model):
 	windows = []; w_size = model.n_window
@@ -269,9 +302,13 @@ if __name__ == '__main__':
 	False_alarms_coin=[]
 	combined_correct_pred_count=0
 	combined_far=0
+	false_positive=[]
+	true_positive=[]
+	TP=[]
+	FP=[]
 	for i in range(loss.shape[1]):
-	    result, pred , classification,correct_count,FAR_count,signal_prediction= pot_eval(min_top_score,lt, l, ls)
-	    result_coin, pred , classification_coin,correct_count_coin,FAR_count_coin,signal_prediction_coin= pot_eval(min_top_score,lt_coin, l_coin, ls_coin)
+	    result, pred , classification,correct_count,FAR_count,signal_prediction,TP,FP= pot_eval(min_top_score,lt, l, ls)
+	    result_coin, pred , classification_coin,correct_count_coin,FAR_count_coin,signal_prediction_coin,TP,FP= pot_eval(min_top_score,lt_coin, l_coin, ls_coin)
 
 	    if isinstance(result, dict):
 	        # Handle result if it's a dictionary
@@ -295,8 +332,8 @@ if __name__ == '__main__':
 	    lt, l, ls = lossT[:, i], loss[:, i], labels[:, i]
 	    lt_coin, l_coin, ls_coin = lossT_coin[:, i], loss_coin[:, i], coinlabels[:, i]
 	    print(i)
-	    result, pred,classification,correct_count,False_alarm,signal_prediction = pot_eval(min_top_score,lt, l, ls)
-	    result_coin, pred_coin,classification_coin,correct_count_coin,False_alarm_coin,signal_prediction_coin = pot_eval(min_top_score,lt_coin, l_coin, ls_coin)
+	    result, pred,classification,correct_count,False_alarm,signal_prediction,TP,FP = pot_eval(min_top_score,lt, l, ls)
+	    result_coin, pred_coin,classification_coin,correct_count_coin,False_alarm_coin,signal_prediction_coin,TP,FP = pot_eval(min_top_score,lt_coin, l_coin, ls_coin)
 
 		
 
@@ -305,6 +342,9 @@ if __name__ == '__main__':
 
 	    correct_pred_count.append(correct_count)
 	    correct_pred_count_coin.append(correct_count_coin)
+
+	    true_positive.append(TP)
+	    false_positive.append(FP)
 		
 	
 	    # Check if the current label is 1
@@ -364,6 +404,9 @@ if __name__ == '__main__':
 	combined_classification_rate = (combined_correct_pred_count / len(correct_pred_count)) * 100
 	correct_pred_count_sum_coin=np.sum(correct_pred_count_coin)
 	classification_rate_coin = (correct_pred_count_sum_coin/ len(correct_pred_count_coin)) * 100
+
+	# Assuming y_pred contains probabilities and labels contains ground truth binary labels
+	#compute_and_plot_roc(true_positive, false_positive, ROCFilename)
 
 	# Print the classification rate
 
