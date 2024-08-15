@@ -297,8 +297,8 @@ if __name__ == '__main__':
 		False_alarms_coin=[]
 		combined_correct_pred_count=0
 		combined_far=0
-		true_positive_rate = np.zeros((30,))
-		false_positive_rate = np.zeros((30,))
+		true_positive_rate = np.zeros((10,))
+		false_positive_rate = np.zeros((10,))
 		true_positive_count=0
 		false_positive_count=0
 		true_negative_count=0
@@ -329,7 +329,7 @@ if __name__ == '__main__':
 		
 		    df = pd.concat([df, result_df], ignore_index=True)
 		    df_coin = pd.concat([df_coin, result_df_coin], ignore_index=True)
-		for j in range(30):
+		for j in range(10):
 			TP=0
 			FP=0
 			FN=0
@@ -338,7 +338,7 @@ if __name__ == '__main__':
 			true_positive_count=0
 			false_positive_count=0
 			false_negative_count=0
-			fraction=fraction/1.3 #when reducing amplitude reduce this fraction
+			 #when reducing amplitude reduce this fraction
 	#	sorted_scores = np.sort(accumulated_noise_scores)[::-1]
     
 	    # Calculate the number of scores to consider for the top fraction
@@ -427,9 +427,15 @@ if __name__ == '__main__':
 			    print("\n")
 				# pprint(getresults2(df, result))
 				# beep(4)
+			fraction=fraction/2
 			true_positive_rate[j]=(true_positive_count+true_negative_count)/(true_positive_count+true_negative_count+false_negative_count)
 			false_positive_rate[j]=(false_positive_count+false_negative_count)/(false_positive_count+false_negative_count+true_negative_count)
-			print(true_positive_count,true_negative_count,false_positive_count,false_negative_count)
+			print('TP,FN,FP,FN',true_positive_count,true_negative_count,false_positive_count,false_negative_count)
+			print('TRUE POSITIVE RATE IS',true_positive_rate)
+			print('FALSE POSITIVE RATE IS',false_positive_rate)
+			
+			input('enter to continue')
+		compute_and_plot_roc(true_positive_rate, false_positive_rate, ROCFilename)
 	print(f'Correct classification rate: {classification_rate:.2f}%')
 	print('false alarm rate',FAR_count)
 	
@@ -448,4 +454,4 @@ if __name__ == '__main__':
 	
 	print(f'combined correct classification rate: {combined_classification_rate:.2f}%')
 	print('combined false alarms is',combined_far)
-	compute_and_plot_roc(true_positive_rate, false_positive_rate, ROCFilename)
+		
