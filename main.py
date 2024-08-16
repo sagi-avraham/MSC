@@ -22,6 +22,19 @@ from sklearn.metrics import *
 import os
 ROCFilename='ROC PLOT'
 output_filename='ROC PLOT'
+
+def train_batches(model, optimizer, scheduler, train_loader, num_batches):
+    for batch_idx in range(num_batches):
+        print(f"Training batch {batch_idx + 1}/{num_batches}")
+        for data in train_loader:
+            data = data.double()
+            loss, lr = backprop(epoch=batch_idx, model=model, data=data, dataO=data, optimizer=optimizer, scheduler=scheduler, training=True)
+        
+        # Save model after each batch
+        save_model(model, optimizer, scheduler, batch_idx, accuracy_list=[])
+        print(f"Finished training batch {batch_idx + 1}/{num_batches}\nModel saved.\n")
+
+
 def compute_and_plot_roc(true_positive_rate, false_positive_rate, ROCFilename):
     """
     Computes and plots the ROC curve from true positive rate and false positive rate.
@@ -66,33 +79,46 @@ def convert_to_windows(data, model):
 		windows.append(w if 'TranAD' in args.model or 'Attention' in args.model else w.view(-1))
 	return torch.stack(windows)
 
-def load_dataset(dataset):
-	global testlabels
-	folder = os.path.join(output_folder, dataset)
-	if not os.path.exists(folder):
-		raise Exception('Processed Data not found.')
-	loader = []
-	for file in ['train', 'test', 'labels','testlabels','coindata','coinlabels']:
-		if dataset == 'SMD': file = 'machine-1-1_' + file
-		if dataset == 'SMAP': file = 'P-1_' + file
-		if dataset == 'MSL': file = 'C-1_' + file
-		if dataset == 'UCR': file = '136_' + file
-		if dataset == 'NAB': file = 'ec2_request_latency_system_failure_' + file
-		loader.append(np.load(os.path.join(folder, f'{file}.npy'), allow_pickle=True, mmap_mode='r'))
+def load_dataset(dataset, index):
+    global testlabels
+    folder = os.path.join(output_folder, dataset)
+    if not os.path.exists(folder):
+        raise Exception('Processed Data not found.')
 
-	# loader = [i[:, debug:debug+1] for i in loader]
-	if args.less: loader[0] = cut_array(0.2, loader[0])
-	train_loader = DataLoader(loader[0], batch_size=loader[0].shape[0])
-	test_loader = DataLoader(loader[1], batch_size=loader[1].shape[0])
-	coin_loader = DataLoader(loader[4], batch_size=loader[2].shape[0])
-	labels = loader[2]
-	testlabels=loader[3].T
-	coinlabels=loader[5].T
-	print(test_loader)
-	print(test_loader)
-	#print('coin labels@@@@@@@@@@@@',coinlabels)
-	#input('press enter')
-	return train_loader, test_loader, labels,coin_loader,coinlabels
+    # Define base file names
+    file_bases = ['train', 'test', 'labels', 'testlabels', 'coindata', 'coinlabels']
+    loaders = []
+
+    # Load each file iteratively based on index
+    for file_base in file_bases:
+        file_name = f"{file_base}{index}.npy"  # e.g., 'train1.npy', 'test1.npy'
+        file_path = os.path.join(folder, file_name)
+        
+        if not os.path.exists(file_path):
+            raise Exception(f"File {file_name} not found in {folder}.")
+        
+        data = np.load(file_path, allow_pickle=True, mmap_mode='r')
+        loaders.append(data)
+    
+    # Apply less data option if needed
+    if args.less:
+        loaders[0] = cut_array(0.2, loaders[0])  # Assuming `loader[0]` is train data
+
+    # Create DataLoader instances
+    train_loader = DataLoader(loaders[0], batch_size=loaders[0].shape[0])
+    test_loader = DataLoader(loaders[1], batch_size=loaders[1].shape[0])
+    coin_loader = DataLoader(loaders[4], batch_size=loaders[2].shape[0])
+    
+    labels = loaders[2]
+    testlabels = loaders[3].T
+    coinlabels = loaders[5].T
+
+    print(f"Train Loader Sample: {next(iter(train_loader)).shape}")
+    print(f"Test Loader Sample: {next(iter(test_loader)).shape}")
+    print(f"Coin Loader Sample: {next(iter(coin_loader)).shape}")
+
+    return train_loader, test_loader, labels, coin_loader, coinlabels
+
 
 def save_model(model, optimizer, scheduler, epoch, accuracy_list):
 	folder = f'checkpoints/{args.model}_{args.dataset}/'
@@ -191,28 +217,36 @@ def backprop(epoch, model, data, dataO, optimizer, scheduler, training = True):
 
 
 if __name__ == '__main__':
-	train_loader, test_loader, labels,coin_loader,coinlabels = load_dataset(args.dataset)
-	if args.model in ['MERLIN']:
-		eval(f'run_{args.model.lower()}(test_loader, labels, args.dataset)')
+	train_loader, test_loader, labels, coin_loader, coinlabels = load_dataset(args.dataset, 1)
+	# Initialize the model, optimizer, scheduler, and accuracy list outside the loop
 	model, optimizer, scheduler, epoch, accuracy_list = load_model(args.model, labels.shape[1])
-
-	## Prepare data
-	trainD, testD,coinD = next(iter(train_loader)), next(iter(test_loader)),next(iter(coin_loader))
-	trainO, testO,coinO = trainD, testD,coinD
-	if model.name in ['Attention', 'DAGMM', 'USAD', 'MSCRED', 'CAE_M', 'GDN', 'MTAD_GAT', 'MAD_GAN'] or 'TranAD' in model.name: 
-		trainD, testD,coinD = convert_to_windows(trainD, model), convert_to_windows(testD, model),convert_to_windows(coinD, model)
-
-	### Training phase
-	if not args.test:
-		print(f'{color.HEADER}Training {args.model} on {args.dataset}{color.ENDC}')
-		num_epochs = 3; e = epoch + 1; start = time()
-		for e in tqdm(list(range(epoch+1, epoch+num_epochs+1))):
-			lossT, lr = backprop(e, model, trainD, trainO, optimizer, scheduler)
-			accuracy_list.append((lossT, lr))
-		print(color.BOLD+'Training time: '+"{:10.4f}".format(time()-start)+' s'+color.ENDC)
-		save_model(model, optimizer, scheduler, e, accuracy_list)
-		plot_accuracies(accuracy_list, f'{args.model}_{args.dataset}')
-
+	for i in range(1,10):  # Adjust the range as needed
+	    model, optimizer, scheduler, epoch, accuracy_list = load_model(args.model, labels.shape[1])
+	    print(f"Loading dataset iteration {i}...")
+	    train_loader, test_loader, labels, coin_loader, coinlabels = load_dataset(args.dataset, i)
+	    
+	    if args.model in ['MERLIN']:
+	        eval(f'run_{args.model.lower()}(test_loader, labels, args.dataset)')
+	    
+	    
+	    # Prepare data
+	    trainD, testD, coinD = next(iter(train_loader)), next(iter(test_loader)), next(iter(coin_loader))
+	    trainO, testO, coinO = trainD, testD, coinD
+	    
+	    if model.name in ['Attention', 'DAGMM', 'USAD', 'MSCRED', 'CAE_M', 'GDN', 'MTAD_GAT', 'MAD_GAN'] or 'TranAD' in model.name:
+	        trainD, testD, coinD = convert_to_windows(trainD, model), convert_to_windows(testD, model), convert_to_windows(coinD, model)
+	    
+	    ### Training phase
+	    if not args.test:
+	        print(f'{color.HEADER}Training {args.model} on {args.dataset}{color.ENDC}')
+	        num_epochs = 10
+	        start = time()
+	        for e in tqdm(range(epoch + 1, epoch + num_epochs + 1)):
+	            lossT, lr = backprop(e, model, trainD, trainO, optimizer, scheduler)
+	            accuracy_list.append((lossT, lr))
+	        print(color.BOLD + 'Training time: ' + "{:10.4f}".format(time() - start) + ' s' + color.ENDC)
+	        save_model(model, optimizer, scheduler, e, accuracy_list)
+	plot_accuracies(accuracy_list, f'{args.model}_{args.dataset}')
 	### Testing phase
 	labels=testlabels.T
 	coinlabels=coinlabels.T
