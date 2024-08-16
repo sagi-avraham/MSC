@@ -120,37 +120,39 @@ def load_dataset(dataset, index):
     return train_loader, test_loader, labels, coin_loader, coinlabels
 
 
+
 def save_model(model, optimizer, scheduler, epoch, accuracy_list):
-	folder = f'checkpoints/{args.model}_{args.dataset}/'
-	os.makedirs(folder, exist_ok=True)
-	file_path = f'{folder}/model.ckpt'
-	torch.save({
+    folder = f'checkpoints/{args.model}_{args.dataset}/'
+    os.makedirs(folder, exist_ok=True)
+    file_path = f'{folder}/model.ckpt'
+    torch.save({
         'epoch': epoch,
         'model_state_dict': model.state_dict(),
         'optimizer_state_dict': optimizer.state_dict(),
         'scheduler_state_dict': scheduler.state_dict(),
         'accuracy_list': accuracy_list}, file_path)
 
-def load_model(modelname, dims):
-	import src.models
-	model_class = getattr(src.models, modelname)
-	model = model_class(dims).double()
+def load_model(modelname, dims,i):
+    import src.models
+    model_class = getattr(src.models, modelname)
+    model = model_class(dims).double()
 
-	optimizer = torch.optim.AdamW(model.parameters() , lr=model.lr, weight_decay=1e-5)
-	scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 5, 0.9)
-	fname = f'checkpoints/{args.model}_{args.dataset}/model.ckpt'
-	if os.path.exists(fname) and (not args.retrain or args.test):
-		print(f"{color.GREEN}Loading pre-trained model: {model.name}{color.ENDC}")
-		checkpoint = torch.load(fname)
-		model.load_state_dict(checkpoint['model_state_dict'])
-		optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-		scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
-		epoch = checkpoint['epoch']
-		accuracy_list = checkpoint['accuracy_list']
-	else:
-		print(f"{color.GREEN}Creating new model: {model.name}{color.ENDC}")
-		epoch = -1; accuracy_list = []
-	return model, optimizer, scheduler, epoch, accuracy_list
+    optimizer = torch.optim.AdamW(model.parameters(), lr=model.lr, weight_decay=1e-5)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 5, 0.9)
+    fname = f'checkpoints/{args.model}_{args.dataset}/model.ckpt'
+    if os.path.exists(fname) and (not args.retrain or args.test) and i>1:
+        print(f"{color.GREEN}Loading pre-trained model: {model.name}{color.ENDC}")
+        checkpoint = torch.load(fname)
+        model.load_state_dict(checkpoint['model_state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+        epoch = checkpoint['epoch']
+        accuracy_list = checkpoint['accuracy_list']
+    else:
+        print(f"{color.GREEN}Creating new model: {model.name}{color.ENDC}")
+        epoch = -1
+        accuracy_list = []
+    return model, optimizer, scheduler, epoch, accuracy_list
 
 def backprop(epoch, model, data, dataO, optimizer, scheduler, training = True):
 	l = nn.MSELoss(reduction = 'mean' if training else 'none')
@@ -217,11 +219,15 @@ def backprop(epoch, model, data, dataO, optimizer, scheduler, training = True):
 
 
 if __name__ == '__main__':
+	i=0
+	newmodelcheck=0 #set to 1 if a new model doesnt need to be made
 	train_loader, test_loader, labels, coin_loader, coinlabels = load_dataset(args.dataset, 1)
+	if args.batchtrain:
+		model, optimizer, scheduler, epoch, accuracy_list = load_model(args.model, labels.shape[1],i)
 	# Initialize the model, optimizer, scheduler, and accuracy list outside the loop
-	model, optimizer, scheduler, epoch, accuracy_list = load_model(args.model, labels.shape[1])
+	#model, optimizer, scheduler, epoch, accuracy_list = load_model(args.model, labels.shape[1])
 	for i in range(1,10):  # Adjust the range as needed
-	    model, optimizer, scheduler, epoch, accuracy_list = load_model(args.model, labels.shape[1])
+	    model, optimizer, scheduler, epoch, accuracy_list = load_model(args.model, labels.shape[1],i)
 	    print(f"Loading dataset iteration {i}...")
 	    train_loader, test_loader, labels, coin_loader, coinlabels = load_dataset(args.dataset, i)
 	    
@@ -239,7 +245,7 @@ if __name__ == '__main__':
 	    ### Training phase
 	    if not args.test:
 	        print(f'{color.HEADER}Training {args.model} on {args.dataset}{color.ENDC}')
-	        num_epochs = 10
+	        num_epochs = 3
 	        start = time()
 	        for e in tqdm(range(epoch + 1, epoch + num_epochs + 1)):
 	            lossT, lr = backprop(e, model, trainD, trainO, optimizer, scheduler)

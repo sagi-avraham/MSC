@@ -22,11 +22,9 @@ parser.add_argument('--retrain',
 parser.add_argument('--less', 
                     action='store_true', 
                     help="train using less data")
-parser.add_argument('--trainbatches', 
-                    metavar='-tb', 
-                    type=int, 
-                    required=False,
-                    default=1,
-                    help="Number of batches to train recursively")
+parser.add_argument('--batchtrain', 
+                    action='store_true', 
+                    help="Enable batch training")
+
 
 args = parser.parse_args()

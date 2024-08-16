@@ -29,7 +29,7 @@ lr_d = {
 		'UCR': 0.006, 
 		'NAB': 0.009, 
 		'MBA': 0.01, 
-		'STRAIN': 0.00005
+		'STRAIN': 0.0000005
 	}
 lr = lr_d[args.dataset]
 
