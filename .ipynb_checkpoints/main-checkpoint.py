@@ -37,8 +37,8 @@ def compute_and_plot_roc(true_positive_rate, false_positive_rate, ROCFilename):
     
     # Sort FPR and corresponding TPR values
     sorted_indices = np.argsort(fpr)
-    fpr_sorted = fpr[sorted_indices]
-    tpr_sorted = tpr[sorted_indices]
+    fpr_sorted = fpr
+    tpr_sorted = tpr
     
     # Compute ROC curve (area under the curve)
     roc_auc = auc(fpr_sorted, tpr_sorted)
@@ -297,19 +297,24 @@ if __name__ == '__main__':
 		False_alarms_coin=[]
 		combined_correct_pred_count=0
 		combined_far=0
-		true_positive_rate = np.zeros((10,))
-		false_positive_rate = np.zeros((10,))
+		true_positive_rate = np.zeros((20,))
+		false_positive_rate = np.zeros((20,))
 		true_positive_count=0
 		false_positive_count=0
 		true_negative_count=0
 		false_negative_count=0
+		
+		true_positive_segment=0
+		false_positive_segment=0
+		true_negative_segment=0
+		false_negative_segment=0
 		TP=[]
 		FP=[]
 		TN=[]
 		FN=[]
 		for i in range(loss.shape[1]):
-		    result, pred , classification,correct_count,FAR_count,signal_prediction,TP,FP,TN,FN= pot_eval(min_top_score,lt, l, ls)
-		    result_coin, pred , classification_coin,correct_count_coin,FAR_count_coin,signal_prediction_coin,TP,FP,TN,FN= pot_eval(min_top_score,lt_coin, l_coin, ls_coin)
+		    result, pred , classification,correct_count,FAR_count,signal_prediction,TP,FP,TN,FN,true_positive_segment,false_positive_segment,true_negative_segment,false_negative_segment= pot_eval(min_top_score,lt, l, ls)
+		    result_coin, pred , classification_coin,correct_count_coin,FAR_count_coin,signal_prediction_coin,TP,FP,TN,FN,true_positive_segment,false_positive_segment,true_negative_segment,false_negative_segment= pot_eval(min_top_score,lt_coin, l_coin, ls_coin)
 	
 		    if isinstance(result, dict):
 		        # Handle result if it's a dictionary
@@ -329,7 +334,7 @@ if __name__ == '__main__':
 		
 		    df = pd.concat([df, result_df], ignore_index=True)
 		    df_coin = pd.concat([df_coin, result_df_coin], ignore_index=True)
-		for j in range(10):
+		for j in range(20):
 			TP=0
 			FP=0
 			FN=0
@@ -338,6 +343,11 @@ if __name__ == '__main__':
 			true_positive_count=0
 			false_positive_count=0
 			false_negative_count=0
+			
+			true_positive_segment=0
+			false_positive_segment=0
+			true_negative_segment=0
+			false_negative_segment=0
 			 #when reducing amplitude reduce this fraction
 	#	sorted_scores = np.sort(accumulated_noise_scores)[::-1]
     
@@ -353,8 +363,8 @@ if __name__ == '__main__':
 			    lt, l, ls = lossT[:, i], loss[:, i], labels[:, i]
 			    lt_coin, l_coin, ls_coin = lossT_coin[:, i], loss_coin[:, i], coinlabels[:, i]
 			    print(i)
-			    result, pred,classification,correct_count,False_alarm,signal_prediction,TP,FP,TN,FN = pot_eval(min_top_score,lt, l, ls)
-			    result_coin, pred_coin,classification_coin,correct_count_coin,False_alarm_coin,signal_prediction_coin,TP,FP,TN,FN = pot_eval(min_top_score,lt_coin, l_coin, ls_coin)
+			    result, pred,classification,correct_count,False_alarm,signal_prediction,TP,FP,TN,FN,true_positive_segment,false_positive_segment,true_negative_segment,false_negative_segment= pot_eval(min_top_score,lt, l, ls)
+			    result_coin, pred_coin,classification_coin,correct_count_coin,False_alarm_coin,signal_prediction_coin,TP,FP,TN,FN,true_positive_segment,false_positive_segment,true_negative_segment,false_negative_segment= pot_eval(min_top_score,lt_coin, l_coin, ls_coin)
 				
 				
 		
@@ -364,11 +374,12 @@ if __name__ == '__main__':
 			    correct_pred_count.append(correct_count)
 			    correct_pred_count_coin.append(correct_count_coin)
 		
-			    true_positive_count=true_positive_count+TP
-			    false_positive_count=false_positive_count+FP
+			    true_positive_count=true_positive_segment+true_positive_count
+			    false_positive_count=false_positive_segment+false_positive_count
 				
-			    false_negative_count=false_negative_count+FN
-			    true_negative_count=true_negative_count+TN
+			   # false_negative_count=false_negative_count+false_positive_segment
+			    true_negative_count=true_negative_count+true_negative_segment
+			    false_negative_count=false_negative_count+false_negative_segment
 			
 			
 			    # Check if the current label is 1
@@ -427,15 +438,15 @@ if __name__ == '__main__':
 			    print("\n")
 				# pprint(getresults2(df, result))
 				# beep(4)
-			fraction=fraction/2
-			true_positive_rate[j]=(true_positive_count+true_negative_count)/(true_positive_count+true_negative_count+false_negative_count)
-			false_positive_rate[j]=(false_positive_count+false_negative_count)/(false_positive_count+false_negative_count+true_negative_count)
+			fraction=fraction/1.3
+			true_positive_rate[j]=(true_positive_count)/(true_positive_count+false_negative_count)
+			false_positive_rate[j]=(false_positive_count)/(false_positive_count+true_negative_count)
 			print('TP,FN,FP,FN',true_positive_count,true_negative_count,false_positive_count,false_negative_count)
 			print('TRUE POSITIVE RATE IS',true_positive_rate)
 			print('FALSE POSITIVE RATE IS',false_positive_rate)
 			
-			input('enter to continue')
-		compute_and_plot_roc(true_positive_rate, false_positive_rate, ROCFilename)
+			#input('enter to continue')
+	compute_and_plot_roc(true_positive_rate, false_positive_rate, ROCFilename)
 	print(f'Correct classification rate: {classification_rate:.2f}%')
 	print('false alarm rate',FAR_count)
 	
