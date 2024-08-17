@@ -15,16 +15,26 @@ class color:
     UNDERLINE = '\033[4m'
 
 def plot_accuracies(accuracy_list, folder):
-	os.makedirs(f'plots/{folder}/', exist_ok=True)
-	trainAcc = [i[0] for i in accuracy_list]
-	lrs = [i[1] for i in accuracy_list]
-	plt.xlabel('Epochs')
-	plt.ylabel('Average Training Loss')
-	plt.plot(range(len(trainAcc)), trainAcc, label='Average Training Loss', linewidth=1, linestyle='-', marker='.')
-	plt.twinx()
-	plt.plot(range(len(lrs)), lrs, label='Learning Rate', color='r', linewidth=1, linestyle='--', marker='.')
-	plt.savefig(f'plots/{folder}/training-graph.pdf')
-	plt.clf()
+    os.makedirs(f'plots/{folder}/', exist_ok=True)
+
+    # Extract the average losses and learning rates
+    trainAcc = [i[0] for i in accuracy_list]
+    lrs = [i[1] for i in accuracy_list]
+
+    # Plot average loss
+    plt.xlabel('True Epochs')
+    plt.ylabel('Average Training Loss')
+    plt.plot(range(1, len(trainAcc) + 1), trainAcc, label='Average Training Loss', linewidth=1, linestyle='-', marker='.')
+    
+    # Plot learning rate on secondary y-axis
+    ax2 = plt.gca().twinx()
+    ax2.set_ylabel('Learning Rate')
+    ax2.plot(range(1, len(lrs) + 1), lrs, label='Learning Rate', color='r', linewidth=1, linestyle='--', marker='.')
+    
+    # Save the plot as a PDF
+    plt.savefig(f'plots/{folder}/training-graph.pdf')
+    plt.clf()  # Clear the figure after saving
+
 
 def cut_array(percentage, arr):
 	print(f'{color.BOLD}Slicing dataset to {int(percentage*100)}%{color.ENDC}')

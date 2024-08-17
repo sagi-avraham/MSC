@@ -141,7 +141,7 @@ def save_model(model, optimizer, scheduler, epoch, accuracy_list, last_loss):
 	}, file_path)
 
 
-def load_model(modelname, dims, i):
+def load_model(modelname, dims):
 	import src.models
 	model_class = getattr(src.models, modelname)
 	model = model_class(dims).double()
@@ -245,44 +245,49 @@ def backprop(epoch, model, data, dataO, optimizer, scheduler, training = True):
 
 
 if __name__ == '__main__':
-	i = 0
-	newmodelcheck = 0
+	accuracy_list = []  # Initialize list to store average loss and lr per true_epoch
 	train_loader, test_loader, labels, coin_loader, coinlabels = load_dataset(args.dataset, 1)
-	
-	if args.batchtrain:
-		model, optimizer, scheduler, epoch, accuracy_list, last_loss = load_model(args.model, labels.shape[1], i)
-	else:
-		last_loss = None
-	
-	for i in range(1, 100):
-		#asyncio.run(main())
-		#model, optimizer, scheduler, epoch, accuracy_list, last_loss = load_model(args.model, labels.shape[1], i)
-		print(f"Loading dataset iteration {i}...")
-		train_loader, test_loader, labels, coin_loader, coinlabels = load_dataset(args.dataset, i)
-		
-		if args.model in ['MERLIN']:
-			eval(f'run_{args.model.lower()}(test_loader, labels, args.dataset)')
-		
-		trainD, testD, coinD = next(iter(train_loader)), next(iter(test_loader)), next(iter(coin_loader))
-		trainO, testO, coinO = trainD, testD, coinD
-		
-		if model.name in ['Attention', 'DAGMM', 'USAD', 'MSCRED', 'CAE_M', 'GDN', 'MTAD_GAT', 'MAD_GAN'] or 'TranAD' in model.name:
-			trainD, testD, coinD = convert_to_windows(trainD, model), convert_to_windows(testD, model), convert_to_windows(coinD, model)
-		
-		if not args.test:
-			print(f'{color.HEADER}Training {args.model} on {args.dataset}{color.ENDC}')
-			num_epochs = 5
-			start = time()
-			for e in tqdm(range(epoch + 1, epoch + num_epochs + 1)):
-				lossT, lr = backprop(e, model, trainD, trainO, optimizer, scheduler)
-				accuracy_list.append((lossT, lr))
-				last_loss = lossT  # Update the last loss
-			print(color.BOLD + 'Training time: ' + "{:10.4f}".format(time() - start) + ' s' + color.ENDC)
-			save_model(model, optimizer, scheduler, e, accuracy_list, last_loss)
-			scheduler.step()
-# Save model with last loss
+	model, optimizer, scheduler, epoch, accuracy_list, last_loss = load_model(args.model, labels.shape[1])
+	for true_epoch in range(1, 5):
+		lossT_accumulated = np.array([])  # Reset accumulation for each true_epoch
+		lr_accumulated = np.array([])  # Reset learning rate accumulation for each true_epoch
 
+		
+
+		
+		for i in range(1, 20):
+			print(f"Loading dataset iteration {i}...")
+			train_loader, test_loader, labels, coin_loader, coinlabels = load_dataset(args.dataset, i)
+
+			trainD, testD, coinD = next(iter(train_loader)), next(iter(test_loader)), next(iter(coin_loader))
+			trainO, testO, coinO = trainD, testD, coinD
+			
+			if model.name in ['Attention', 'DAGMM', 'USAD', 'MSCRED', 'CAE_M', 'GDN', 'MTAD_GAT', 'MAD_GAN'] or 'TranAD' in model.name:
+				trainD, testD, coinD = convert_to_windows(trainD, model), convert_to_windows(testD, model), convert_to_windows(coinD, model)
+			
+			if not args.test:
+				print(f'{color.HEADER}Training {args.model} on {args.dataset}{color.ENDC}')
+				num_epochs = 1
+				start = time()
+				for e in tqdm(range(epoch + 1, epoch + num_epochs + 1)):
+					lossT, lr = backprop(e, model, trainD, trainO, optimizer, scheduler)
+					
+					# Accumulate lossT and lr
+					lossT_accumulated = np.append(lossT_accumulated, lossT)
+					lr_accumulated = np.append(lr_accumulated, lr)
+					
+					last_loss = lossT
+				
+				print(color.BOLD + 'Training time: ' + "{:10.4f}".format(time() - start) + ' s' + color.ENDC)
+		
+		# After the loop, calculate the average loss and lr for this true_epoch
+		avg_lossT = np.mean(lossT_accumulated)
+		avg_lr = np.mean(lr_accumulated)
+		accuracy_list.append((avg_lossT, avg_lr))  # Store average loss and learning rate for plotting
+		print(accuracy_list)
+	# Plot the accuracies (average losses)
 	plot_accuracies(accuracy_list, f'{args.model}_{args.dataset}')
+
 	### Testing phase
 	labels=testlabels.T
 	coinlabels=coinlabels.T
