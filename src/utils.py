@@ -27,9 +27,9 @@ def plot_accuracies(accuracy_list, folder):
     plt.plot(range(1, len(trainAcc) + 1), trainAcc, label='Average Training Loss', linewidth=1, linestyle='-', marker='.')
     
     # Plot learning rate on secondary y-axis
-    ax2 = plt.gca().twinx()
-    ax2.set_ylabel('Learning Rate')
-    ax2.plot(range(1, len(lrs) + 1), lrs, label='Learning Rate', color='r', linewidth=1, linestyle='--', marker='.')
+    #ax2 = plt.gca().twinx()
+    #ax2.set_ylabel('Learning Rate')
+    #ax2.plot(range(1, len(lrs) + 1), lrs, label='Learning Rate', color='r', linewidth=1, linestyle='--', marker='.')
     
     # Save the plot as a PDF
     plt.savefig(f'plots/{folder}/training-graph.pdf')

@@ -121,9 +121,9 @@ def load_dataset(dataset, index):
 	testlabels = loaders[3].T
 	coinlabels = loaders[5].T
 
-	print(f"Train Loader Sample: {next(iter(train_loader)).shape}")
-	print(f"Test Loader Sample: {next(iter(test_loader)).shape}")
-	print(f"Coin Loader Sample: {next(iter(coin_loader)).shape}")
+	#print(f"Train Loader Sample: {next(iter(train_loader)).shape}")
+	#print(f"Test Loader Sample: {next(iter(test_loader)).shape}")
+	#print(f"Coin Loader Sample: {next(iter(coin_loader)).shape}")
 
 	return train_loader, test_loader, labels, coin_loader, coinlabels
 
@@ -211,7 +211,7 @@ def backprop(epoch, model, data, dataO, optimizer, scheduler, training = True):
 				loss.backward(retain_graph=True)
 				optimizer.step()
 			scheduler.step()
-			tqdm.write(f'Epoch {epoch},\tL1 = {np.mean(l1s)}')
+			#tqdm.write(f'Epoch {epoch},\tL1 = {np.mean(l1s)}')
 			return np.mean(l1s), optimizer.param_groups[0]['lr']
 		else:
 			for d, _ in dataloader:
@@ -245,18 +245,20 @@ def backprop(epoch, model, data, dataO, optimizer, scheduler, training = True):
 
 
 if __name__ == '__main__':
-	accuracy_list = []  # Initialize list to store average loss and lr per true_epoch
+	accuracy_list = []  
+	start = time()
+	# Initialize list to store average loss and lr per true_epoch
 	train_loader, test_loader, labels, coin_loader, coinlabels = load_dataset(args.dataset, 1)
 	model, optimizer, scheduler, epoch, accuracy_list, last_loss = load_model(args.model, labels.shape[1])
-	for true_epoch in range(1, 5):
+	for true_epoch in range(1, 20):
 		lossT_accumulated = np.array([])  # Reset accumulation for each true_epoch
 		lr_accumulated = np.array([])  # Reset learning rate accumulation for each true_epoch
 
 		
 
 		
-		for i in range(1, 20):
-			print(f"Loading dataset iteration {i}...")
+		for i in range(1,5):
+			#print(f"Loading dataset iteration {i}...")
 			train_loader, test_loader, labels, coin_loader, coinlabels = load_dataset(args.dataset, i)
 
 			trainD, testD, coinD = next(iter(train_loader)), next(iter(test_loader)), next(iter(coin_loader))
@@ -266,11 +268,11 @@ if __name__ == '__main__':
 				trainD, testD, coinD = convert_to_windows(trainD, model), convert_to_windows(testD, model), convert_to_windows(coinD, model)
 			
 			if not args.test:
-				print(f'{color.HEADER}Training {args.model} on {args.dataset}{color.ENDC}')
+				#print(f'{color.HEADER}Training {args.model} on {args.dataset}{color.ENDC}')
 				num_epochs = 1
-				start = time()
+			
 				for e in tqdm(range(epoch + 1, epoch + num_epochs + 1)):
-					lossT, lr = backprop(e, model, trainD, trainO, optimizer, scheduler)
+					lossT, lr = backprop(true_epoch, model, trainD, trainO, optimizer, scheduler)
 					
 					# Accumulate lossT and lr
 					lossT_accumulated = np.append(lossT_accumulated, lossT)
@@ -278,16 +280,18 @@ if __name__ == '__main__':
 					
 					last_loss = lossT
 				
-				print(color.BOLD + 'Training time: ' + "{:10.4f}".format(time() - start) + ' s' + color.ENDC)
 		
 		# After the loop, calculate the average loss and lr for this true_epoch
 		avg_lossT = np.mean(lossT_accumulated)
 		avg_lr = np.mean(lr_accumulated)
 		accuracy_list.append((avg_lossT, avg_lr))  # Store average loss and learning rate for plotting
-		print(accuracy_list)
+		print('Epoch :',true_epoch,'    Loss :',avg_lossT)
+		print('\n')
+		
 	# Plot the accuracies (average losses)
+	print(color.BOLD + 'Training time: ' + "{:10.4f}".format(time() - start) + ' s' + color.ENDC)
 	plot_accuracies(accuracy_list, f'{args.model}_{args.dataset}')
-
+	save_model(model, optimizer, scheduler, e, accuracy_list, last_loss)
 	### Testing phase
 	labels=testlabels.T
 	coinlabels=coinlabels.T
