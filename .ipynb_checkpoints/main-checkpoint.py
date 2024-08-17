@@ -12,7 +12,8 @@ from src.merlin import *
 from src.anomalyscores import *
 from torch.utils.data import Dataset, DataLoader, TensorDataset
 import torch.nn as nn
-from time import time
+from time import time 
+import asyncio
 from pprint import pprint
 # from beepy import beep
 import numpy as np
@@ -22,53 +23,60 @@ from sklearn.metrics import *
 import os
 ROCFilename='ROC PLOT'
 output_filename='ROC PLOT'
+import asyncio
 
+async def main():
+	for i in range(0,1):
+		print(f"Iteration {i} - Waiting for 5 seconds...")
+		await asyncio.sleep(3)  # Await the sleep to actually pause execution
+		print(f"Iteration {i} - Done waiting!")
+	
 def train_batches(model, optimizer, scheduler, train_loader, num_batches):
-    for batch_idx in range(num_batches):
-        print(f"Training batch {batch_idx + 1}/{num_batches}")
-        for data in train_loader:
-            data = data.double()
-            loss, lr = backprop(epoch=batch_idx, model=model, data=data, dataO=data, optimizer=optimizer, scheduler=scheduler, training=True)
-        
-        # Save model after each batch
-        save_model(model, optimizer, scheduler, batch_idx, accuracy_list=[])
-        print(f"Finished training batch {batch_idx + 1}/{num_batches}\nModel saved.\n")
+	for batch_idx in range(num_batches):
+		print(f"Training batch {batch_idx + 1}/{num_batches}")
+		for data in train_loader:
+			data = data.double()
+			loss, lr = backprop(epoch=batch_idx, model=model, data=data, dataO=data, optimizer=optimizer, scheduler=scheduler, training=True)
+		
+		# Save model after each batch
+		save_model(model, optimizer, scheduler, batch_idx, accuracy_list=[])
+		print(f"Finished training batch {batch_idx + 1}/{num_batches}\nModel saved.\n")
 
 
 def compute_and_plot_roc(true_positive_rate, false_positive_rate, ROCFilename):
-    """
-    Computes and plots the ROC curve from true positive rate and false positive rate.
-    
-    Parameters:
-    - true_positive_rate: List or array of True Positive Rate values.
-    - false_positive_rate: List or array of False Positive Rate values.
-    - ROCFilename: Filename to save the ROC curve plot.
-    """
-    # Convert to numpy arrays for easier manipulation
-    tpr = np.array(true_positive_rate)
-    fpr = np.array(false_positive_rate)
-    
-    # Sort FPR and corresponding TPR values
-    sorted_indices = np.argsort(fpr)
-    fpr_sorted = fpr
-    tpr_sorted = tpr
-    
-    # Compute ROC curve (area under the curve)
-    roc_auc = auc(fpr_sorted, tpr_sorted)
-    
-    # Plot ROC curve
-    plt.figure()
-    plt.plot(fpr_sorted, tpr_sorted, color='darkorange', lw=2, label='ROC curve (area = %0.2f)' % roc_auc)
-    plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
-    plt.xlim([0.0, 1.0])
-    plt.ylim([0.0, 1.05])
-    plt.xlabel('False Positive Rate')
-    plt.ylabel('True Positive Rate')
-    plt.title('Receiver Operating Characteristic')
-    plt.legend(loc='lower right')
-    plt.grid(True)
-    plt.savefig(ROCFilename, format='pdf')
-    plt.close()
+	"""
+	Computes and plots the ROC curve from true positive rate and false positive rate.
+	
+	Parameters:
+	- true_positive_rate: List or array of True Positive Rate values.
+	- false_positive_rate: List or array of False Positive Rate values.
+	- ROCFilename: Filename to save the ROC curve plot.
+	"""
+	# Convert to numpy arrays for easier manipulation
+	tpr = np.array(true_positive_rate)
+	fpr = np.array(false_positive_rate)
+	
+	# Sort FPR and corresponding TPR values
+	sorted_indices = np.argsort(fpr)
+	fpr_sorted = fpr
+	tpr_sorted = tpr
+	
+	# Compute ROC curve (area under the curve)
+	roc_auc = auc(fpr_sorted, tpr_sorted)
+	
+	# Plot ROC curve
+	plt.figure()
+	plt.plot(fpr_sorted, tpr_sorted, color='darkorange', lw=2, label='ROC curve (area = %0.2f)' % roc_auc)
+	plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+	plt.xlim([0.0, 1.0])
+	plt.ylim([0.0, 1.05])
+	plt.xlabel('False Positive Rate')
+	plt.ylabel('True Positive Rate')
+	plt.title('Receiver Operating Characteristic')
+	plt.legend(loc='lower right')
+	plt.grid(True)
+	plt.savefig(ROCFilename, format='pdf')
+	plt.close()
 	
 def convert_to_windows(data, model):
 	windows = []; w_size = model.n_window
@@ -80,80 +88,99 @@ def convert_to_windows(data, model):
 	return torch.stack(windows)
 
 def load_dataset(dataset, index):
-    global testlabels
-    folder = os.path.join(output_folder, dataset)
-    if not os.path.exists(folder):
-        raise Exception('Processed Data not found.')
+	global testlabels
+	folder = os.path.join(output_folder, dataset)
+	if not os.path.exists(folder):
+		raise Exception('Processed Data not found.')
 
-    # Define base file names
-    file_bases = ['train', 'test', 'labels', 'testlabels', 'coindata', 'coinlabels']
-    loaders = []
+	# Define base file names
+	file_bases = ['train', 'test', 'labels', 'testlabels', 'coindata', 'coinlabels']
+	loaders = []
 
-    # Load each file iteratively based on index
-    for file_base in file_bases:
-        file_name = f"{file_base}{index}.npy"  # e.g., 'train1.npy', 'test1.npy'
-        file_path = os.path.join(folder, file_name)
-        
-        if not os.path.exists(file_path):
-            raise Exception(f"File {file_name} not found in {folder}.")
-        
-        data = np.load(file_path, allow_pickle=True, mmap_mode='r')
-        loaders.append(data)
-    
-    # Apply less data option if needed
-    if args.less:
-        loaders[0] = cut_array(0.2, loaders[0])  # Assuming `loader[0]` is train data
+	# Load each file iteratively based on index
+	for file_base in file_bases:
+		file_name = f"{file_base}{index}.npy"  # e.g., 'train1.npy', 'test1.npy'
+		file_path = os.path.join(folder, file_name)
+		
+		if not os.path.exists(file_path):
+			raise Exception(f"File {file_name} not found in {folder}.")
+		
+		data = np.load(file_path, allow_pickle=True, mmap_mode='r')
+		loaders.append(data)
+	
+	# Apply less data option if needed
+	if args.less:
+		loaders[0] = cut_array(0.2, loaders[0])  # Assuming `loader[0]` is train data
 
-    # Create DataLoader instances
-    train_loader = DataLoader(loaders[0], batch_size=loaders[0].shape[0])
-    test_loader = DataLoader(loaders[1], batch_size=loaders[1].shape[0])
-    coin_loader = DataLoader(loaders[4], batch_size=loaders[2].shape[0])
-    
-    labels = loaders[2]
-    testlabels = loaders[3].T
-    coinlabels = loaders[5].T
+	# Create DataLoader instances
+	train_loader = DataLoader(loaders[0], batch_size=loaders[0].shape[0])
+	test_loader = DataLoader(loaders[1], batch_size=loaders[1].shape[0])
+	coin_loader = DataLoader(loaders[4], batch_size=loaders[2].shape[0])
+	
+	labels = loaders[2]
+	testlabels = loaders[3].T
+	coinlabels = loaders[5].T
 
-    print(f"Train Loader Sample: {next(iter(train_loader)).shape}")
-    print(f"Test Loader Sample: {next(iter(test_loader)).shape}")
-    print(f"Coin Loader Sample: {next(iter(coin_loader)).shape}")
+	print(f"Train Loader Sample: {next(iter(train_loader)).shape}")
+	print(f"Test Loader Sample: {next(iter(test_loader)).shape}")
+	print(f"Coin Loader Sample: {next(iter(coin_loader)).shape}")
 
-    return train_loader, test_loader, labels, coin_loader, coinlabels
+	return train_loader, test_loader, labels, coin_loader, coinlabels
+
+def save_model(model, optimizer, scheduler, epoch, accuracy_list, last_loss):
+	folder = f'checkpoints/{args.model}_{args.dataset}/'
+	os.makedirs(folder, exist_ok=True)
+	file_path = f'{folder}/model.ckpt'
+	torch.save({
+		'epoch': epoch,
+		'model_state_dict': model.state_dict(),
+		'optimizer_state_dict': optimizer.state_dict(),
+		'scheduler_state_dict': scheduler.state_dict(),
+		'accuracy_list': accuracy_list,
+		'last_loss': last_loss  # Save the last loss
+	}, file_path)
 
 
+def load_model(modelname, dims, i):
+	import src.models
+	model_class = getattr(src.models, modelname)
+	model = model_class(dims).double()
 
-def save_model(model, optimizer, scheduler, epoch, accuracy_list):
-    folder = f'checkpoints/{args.model}_{args.dataset}/'
-    os.makedirs(folder, exist_ok=True)
-    file_path = f'{folder}/model.ckpt'
-    torch.save({
-        'epoch': epoch,
-        'model_state_dict': model.state_dict(),
-        'optimizer_state_dict': optimizer.state_dict(),
-        'scheduler_state_dict': scheduler.state_dict(),
-        'accuracy_list': accuracy_list}, file_path)
+	optimizer = torch.optim.AdamW(model.parameters(), lr=model.lr, weight_decay=1e-5)
+	scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 5, 0.9)
+	fname = f'checkpoints/{args.model}_{args.dataset}/model.ckpt'
+	
+	if os.path.exists(fname) and (not args.retrain or args.test):
+		print(f"{color.GREEN}Loading pre-trained model: {model.name}{color.ENDC}")
+		checkpoint = torch.load(fname)
+		
+		# Load the model, optimizer, scheduler states
+		model.load_state_dict(checkpoint['model_state_dict'])
+		optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+		scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+		
+		epoch = checkpoint['epoch']
+		accuracy_list = checkpoint['accuracy_list']
+		last_loss = checkpoint.get('last_loss', None)  # Load the last loss
 
-def load_model(modelname, dims,i):
-    import src.models
-    model_class = getattr(src.models, modelname)
-    model = model_class(dims).double()
+		# Print the loaded states for debugging or inspection
+		#print(f"Model State Dict: {model.state_dict()}")
+		#print(f"Optimizer State Dict: {optimizer.state_dict()}")
+		#print(f"Scheduler State Dict: {scheduler.state_dict()}")
+		#print(f"Epoch: {epoch}")
+		#print(f"Accuracy List: {accuracy_list}")
+		#print(f"Last Loss: {last_loss}")
+		
+	else:
+		print(f"{color.GREEN}Creating new model: {model.name}{color.ENDC}")
+		epoch = -1
+		accuracy_list = []
+		last_loss = None  # Initialize last loss
+	
+	return model, optimizer, scheduler, epoch, accuracy_list, last_loss
 
-    optimizer = torch.optim.AdamW(model.parameters(), lr=model.lr, weight_decay=1e-5)
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 5, 0.9)
-    fname = f'checkpoints/{args.model}_{args.dataset}/model.ckpt'
-    if os.path.exists(fname) and (not args.retrain or args.test) and i>1:
-        print(f"{color.GREEN}Loading pre-trained model: {model.name}{color.ENDC}")
-        checkpoint = torch.load(fname)
-        model.load_state_dict(checkpoint['model_state_dict'])
-        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-        scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
-        epoch = checkpoint['epoch']
-        accuracy_list = checkpoint['accuracy_list']
-    else:
-        print(f"{color.GREEN}Creating new model: {model.name}{color.ENDC}")
-        epoch = -1
-        accuracy_list = []
-    return model, optimizer, scheduler, epoch, accuracy_list
-
+	
+	return model, optimizer, scheduler, epoch, accuracy_list, last_loss
 def backprop(epoch, model, data, dataO, optimizer, scheduler, training = True):
 	l = nn.MSELoss(reduction = 'mean' if training else 'none')
 	feats = dataO.shape[1] 
@@ -217,41 +244,44 @@ def backprop(epoch, model, data, dataO, optimizer, scheduler, training = True):
 
 
 
-
 if __name__ == '__main__':
-	i=0
-	newmodelcheck=0 #set to 1 if a new model doesnt need to be made
+	i = 0
+	newmodelcheck = 0
 	train_loader, test_loader, labels, coin_loader, coinlabels = load_dataset(args.dataset, 1)
+	
 	if args.batchtrain:
-		model, optimizer, scheduler, epoch, accuracy_list = load_model(args.model, labels.shape[1],i)
-	# Initialize the model, optimizer, scheduler, and accuracy list outside the loop
-	#model, optimizer, scheduler, epoch, accuracy_list = load_model(args.model, labels.shape[1])
-	for i in range(1,10):  # Adjust the range as needed
-	    model, optimizer, scheduler, epoch, accuracy_list = load_model(args.model, labels.shape[1],i)
-	    print(f"Loading dataset iteration {i}...")
-	    train_loader, test_loader, labels, coin_loader, coinlabels = load_dataset(args.dataset, i)
-	    
-	    if args.model in ['MERLIN']:
-	        eval(f'run_{args.model.lower()}(test_loader, labels, args.dataset)')
-	    
-	    
-	    # Prepare data
-	    trainD, testD, coinD = next(iter(train_loader)), next(iter(test_loader)), next(iter(coin_loader))
-	    trainO, testO, coinO = trainD, testD, coinD
-	    
-	    if model.name in ['Attention', 'DAGMM', 'USAD', 'MSCRED', 'CAE_M', 'GDN', 'MTAD_GAT', 'MAD_GAN'] or 'TranAD' in model.name:
-	        trainD, testD, coinD = convert_to_windows(trainD, model), convert_to_windows(testD, model), convert_to_windows(coinD, model)
-	    
-	    ### Training phase
-	    if not args.test:
-	        print(f'{color.HEADER}Training {args.model} on {args.dataset}{color.ENDC}')
-	        num_epochs = 3
-	        start = time()
-	        for e in tqdm(range(epoch + 1, epoch + num_epochs + 1)):
-	            lossT, lr = backprop(e, model, trainD, trainO, optimizer, scheduler)
-	            accuracy_list.append((lossT, lr))
-	        print(color.BOLD + 'Training time: ' + "{:10.4f}".format(time() - start) + ' s' + color.ENDC)
-	        save_model(model, optimizer, scheduler, e, accuracy_list)
+		model, optimizer, scheduler, epoch, accuracy_list, last_loss = load_model(args.model, labels.shape[1], i)
+	else:
+		last_loss = None
+	
+	for i in range(1, 2):
+		#asyncio.run(main())
+		model, optimizer, scheduler, epoch, accuracy_list, last_loss = load_model(args.model, labels.shape[1], i)
+		print(f"Loading dataset iteration {i}...")
+		train_loader, test_loader, labels, coin_loader, coinlabels = load_dataset(args.dataset, i)
+		
+		if args.model in ['MERLIN']:
+			eval(f'run_{args.model.lower()}(test_loader, labels, args.dataset)')
+		
+		trainD, testD, coinD = next(iter(train_loader)), next(iter(test_loader)), next(iter(coin_loader))
+		trainO, testO, coinO = trainD, testD, coinD
+		
+		if model.name in ['Attention', 'DAGMM', 'USAD', 'MSCRED', 'CAE_M', 'GDN', 'MTAD_GAT', 'MAD_GAN'] or 'TranAD' in model.name:
+			trainD, testD, coinD = convert_to_windows(trainD, model), convert_to_windows(testD, model), convert_to_windows(coinD, model)
+		
+		if not args.test:
+			print(f'{color.HEADER}Training {args.model} on {args.dataset}{color.ENDC}')
+			num_epochs = 10
+			start = time()
+			for e in tqdm(range(epoch + 1, epoch + num_epochs + 1)):
+				lossT, lr = backprop(e, model, trainD, trainO, optimizer, scheduler)
+				accuracy_list.append((lossT, lr))
+				last_loss = lossT  # Update the last loss
+			print(color.BOLD + 'Training time: ' + "{:10.4f}".format(time() - start) + ' s' + color.ENDC)
+			save_model(model, optimizer, scheduler, e, accuracy_list, last_loss)
+			scheduler.step()
+# Save model with last loss
+
 	plot_accuracies(accuracy_list, f'{args.model}_{args.dataset}')
 	### Testing phase
 	labels=testlabels.T
@@ -293,30 +323,30 @@ if __name__ == '__main__':
 	min_top_score_coin=np.array([])
 	fraction=1
 	for i in range(loss.shape[1]):
-	    lt, l, ls = lossT[:, i], loss[:, i], labels[:, i]
-	    lt_coin, l_coin, ls_coin = lossT_coin[:, i], loss_coin[:, i], coinlabels[:, i]
-	    #print("Loss T IS", lt.shape)
-	    #print(lt)
-	    #print("Loss IS", l.shape)
-	    #print(l)
-	    #print("Labels IS", ls.shape)
+		lt, l, ls = lossT[:, i], loss[:, i], labels[:, i]
+		lt_coin, l_coin, ls_coin = lossT_coin[:, i], loss_coin[:, i], coinlabels[:, i]
+		#print("Loss T IS", lt.shape)
+		#print(lt)
+		#print("Loss IS", l.shape)
+		#print(l)
+		#print("Labels IS", ls.shape)
 	   # print(ls)
-	    #write_anomaly_to_file(score,label,file_path)
-	    updated_scores, noise_scores,min_top_score = pot_scores(lt, l, ls)
-	    print('len noise_score',len(noise_scores))
-	    accumulated_noise_scores.extend(noise_scores)
-	    #input('21312')
+		#write_anomaly_to_file(score,label,file_path)
+		updated_scores, noise_scores,min_top_score = pot_scores(lt, l, ls)
+		print('len noise_score',len(noise_scores))
+		accumulated_noise_scores.extend(noise_scores)
+		#input('21312')
 	 #   accumulated_noise_scores.append(noise_scores)
-	    updated_scores_coin, noise_scores_coin,min_top_score_coin = pot_scores(lt_coin, l_coin, ls_coin)
-	    #min_top_score_coin=min_top_score
-        # Flatten updated_scores if it's multidimensional
-	    #updated_scores = np.ravel(updated_scores)
-	    #noise_scores=np.ravel(noise_scores)
-        # Append the updated scores to the accumulated_scores array
-	    accumulated_scores = np.concatenate((accumulated_scores, updated_scores))
-	    accumulated_scores_coin = np.concatenate((accumulated_scores_coin, updated_scores_coin))
-	    #accumulated_noise_scores= np.concatenate((accumulated_noise_scores,test))
-	#    print('THE MIN TOP SCORE IS',min_top_score)
+		updated_scores_coin, noise_scores_coin,min_top_score_coin = pot_scores(lt_coin, l_coin, ls_coin)
+		#min_top_score_coin=min_top_score
+		# Flatten updated_scores if it's multidimensional
+		#updated_scores = np.ravel(updated_scores)
+		#noise_scores=np.ravel(noise_scores)
+		# Append the updated scores to the accumulated_scores array
+		accumulated_scores = np.concatenate((accumulated_scores, updated_scores))
+		accumulated_scores_coin = np.concatenate((accumulated_scores_coin, updated_scores_coin))
+		#accumulated_noise_scores= np.concatenate((accumulated_noise_scores,test))
+	#	print('THE MIN TOP SCORE IS',min_top_score)
 	#accumulated_noise_scores=np.ravel(accumulated_noise_scores)
 	#print('accumulatee noise scores is',len(accumulated_noise_scores))
 	# Sort the scores array in descending order
@@ -353,27 +383,27 @@ if __name__ == '__main__':
 		TN=[]
 		FN=[]
 		for i in range(loss.shape[1]):
-		    result, pred , classification,correct_count,FAR_count,signal_prediction,TP,FP,TN,FN,true_positive_segment,false_positive_segment,true_negative_segment,false_negative_segment= pot_eval(min_top_score,lt, l, ls)
-		    result_coin, pred , classification_coin,correct_count_coin,FAR_count_coin,signal_prediction_coin,TP,FP,TN,FN,true_positive_segment,false_positive_segment,true_negative_segment,false_negative_segment= pot_eval(min_top_score,lt_coin, l_coin, ls_coin)
+			result, pred , classification,correct_count,FAR_count,signal_prediction,TP,FP,TN,FN,true_positive_segment,false_positive_segment,true_negative_segment,false_negative_segment= pot_eval(min_top_score,lt, l, ls)
+			result_coin, pred , classification_coin,correct_count_coin,FAR_count_coin,signal_prediction_coin,TP,FP,TN,FN,true_positive_segment,false_positive_segment,true_negative_segment,false_negative_segment= pot_eval(min_top_score,lt_coin, l_coin, ls_coin)
 	
-		    if isinstance(result, dict):
-		        # Handle result if it's a dictionary
-		        # Example: Convert dictionary to DataFrame with proper columns
-		        result_df = pd.DataFrame.from_dict(result, orient='index', columns=['Column_Name'])
-		        result_df_coin = pd.DataFrame.from_dict(result_coin, orient='index', columns=['Column_Name'])
-		    elif isinstance(result, (list, np.ndarray)):
-		        # Handle result if it's a list or numpy array
-		        # Example: Convert list or numpy array to DataFrame with proper columns
-		        result_df = pd.DataFrame(result, columns=['Column_Name'])
-		    elif isinstance(result, pd.DataFrame):
-		        # If result is already a DataFrame, use it directly
-		        result_df = result
-		    else:
-		        # Handle other cases as needed
-		        raise ValueError("Unsupported type for result")
+			if isinstance(result, dict):
+				# Handle result if it's a dictionary
+				# Example: Convert dictionary to DataFrame with proper columns
+				result_df = pd.DataFrame.from_dict(result, orient='index', columns=['Column_Name'])
+				result_df_coin = pd.DataFrame.from_dict(result_coin, orient='index', columns=['Column_Name'])
+			elif isinstance(result, (list, np.ndarray)):
+				# Handle result if it's a list or numpy array
+				# Example: Convert list or numpy array to DataFrame with proper columns
+				result_df = pd.DataFrame(result, columns=['Column_Name'])
+			elif isinstance(result, pd.DataFrame):
+				# If result is already a DataFrame, use it directly
+				result_df = result
+			else:
+				# Handle other cases as needed
+				raise ValueError("Unsupported type for result")
 		
-		    df = pd.concat([df, result_df], ignore_index=True)
-		    df_coin = pd.concat([df_coin, result_df_coin], ignore_index=True)
+			df = pd.concat([df, result_df], ignore_index=True)
+			df_coin = pd.concat([df_coin, result_df_coin], ignore_index=True)
 		for j in range(20):
 			TP=0
 			FP=0
@@ -390,92 +420,92 @@ if __name__ == '__main__':
 			false_negative_segment=0
 			 #when reducing amplitude reduce this fraction
 	#	sorted_scores = np.sort(accumulated_noise_scores)[::-1]
-    
-	    # Calculate the number of scores to consider for the top fraction
+	
+		# Calculate the number of scores to consider for the top fraction
 			top_count = max(1, int(len(sorted_scores) * fraction))
-	    
-	    # Get the top scores
+		
+		# Get the top scores
 			top_scores = sorted_scores[:top_count]
-	    
-	    # Determine the lowest value in the top scores
+		
+		# Determine the lowest value in the top scores
 			min_top_score = np.min(top_scores)
 			for i in range(loss.shape[1]):
-			    lt, l, ls = lossT[:, i], loss[:, i], labels[:, i]
-			    lt_coin, l_coin, ls_coin = lossT_coin[:, i], loss_coin[:, i], coinlabels[:, i]
-			    print(i)
-			    result, pred,classification,correct_count,False_alarm,signal_prediction,TP,FP,TN,FN,true_positive_segment,false_positive_segment,true_negative_segment,false_negative_segment= pot_eval(min_top_score,lt, l, ls)
-			    result_coin, pred_coin,classification_coin,correct_count_coin,False_alarm_coin,signal_prediction_coin,TP,FP,TN,FN,true_positive_segment,false_positive_segment,true_negative_segment,false_negative_segment= pot_eval(min_top_score,lt_coin, l_coin, ls_coin)
+				lt, l, ls = lossT[:, i], loss[:, i], labels[:, i]
+				lt_coin, l_coin, ls_coin = lossT_coin[:, i], loss_coin[:, i], coinlabels[:, i]
+				print(i)
+				result, pred,classification,correct_count,False_alarm,signal_prediction,TP,FP,TN,FN,true_positive_segment,false_positive_segment,true_negative_segment,false_negative_segment= pot_eval(min_top_score,lt, l, ls)
+				result_coin, pred_coin,classification_coin,correct_count_coin,False_alarm_coin,signal_prediction_coin,TP,FP,TN,FN,true_positive_segment,false_positive_segment,true_negative_segment,false_negative_segment= pot_eval(min_top_score,lt_coin, l_coin, ls_coin)
 				
 				
 		
-			    FAR_count=FAR_count+False_alarm
-			    FAR_count_coin=FAR_count_coin+False_alarm_coin
+				FAR_count=FAR_count+False_alarm
+				FAR_count_coin=FAR_count_coin+False_alarm_coin
 		
-			    correct_pred_count.append(correct_count)
-			    correct_pred_count_coin.append(correct_count_coin)
+				correct_pred_count.append(correct_count)
+				correct_pred_count_coin.append(correct_count_coin)
 		
-			    true_positive_count=true_positive_segment+true_positive_count
-			    false_positive_count=false_positive_segment+false_positive_count
+				true_positive_count=true_positive_segment+true_positive_count
+				false_positive_count=false_positive_segment+false_positive_count
 				
 			   # false_negative_count=false_negative_count+false_positive_segment
-			    true_negative_count=true_negative_count+true_negative_segment
-			    false_negative_count=false_negative_count+false_negative_segment
+				true_negative_count=true_negative_count+true_negative_segment
+				false_negative_count=false_negative_count+false_negative_segment
 			
 			
-			    # Check if the current label is 1
-			    is_label_one = np.any(labels[:, i] == 1)
-			    # Check if the current label is 0
-			    is_label_zero = np.all(labels[:, i] == 0)
-			    
-			    # Conditions for predictions and counts
-			    if np.any(labels[:, i] == 1)  :
-			        if signal_prediction == 1 and signal_prediction_coin == 1:
-			            combined_correct_pred_count = combined_correct_pred_count + 1
-			        #elif signal_prediction == 0 and signal_prediction_coin == 0:
-			           # combined_far = combined_far + 1
-			    
-			    elif is_label_zero:
-			        if signal_prediction == 0 and signal_prediction_coin == 0:
-			            combined_correct_pred_count = combined_correct_pred_count + 1
-			        elif signal_prediction == 1 and signal_prediction_coin == 1:
-			            combined_far = combined_far + 1
-			    correct_pred_count_sum=np.sum(correct_pred_count)
-			    classification_rate = (correct_pred_count_sum / len(correct_pred_count)) * 100
-			    combined_classification_rate = (combined_correct_pred_count / len(correct_pred_count)) * 100
-			    correct_pred_count_sum_coin=np.sum(correct_pred_count_coin)
-			    classification_rate_coin = (correct_pred_count_sum_coin/ len(correct_pred_count_coin)) * 100
+				# Check if the current label is 1
+				is_label_one = np.any(labels[:, i] == 1)
+				# Check if the current label is 0
+				is_label_zero = np.all(labels[:, i] == 0)
+				
+				# Conditions for predictions and counts
+				if np.any(labels[:, i] == 1)  :
+					if signal_prediction == 1 and signal_prediction_coin == 1:
+						combined_correct_pred_count = combined_correct_pred_count + 1
+					#elif signal_prediction == 0 and signal_prediction_coin == 0:
+					   # combined_far = combined_far + 1
+				
+				elif is_label_zero:
+					if signal_prediction == 0 and signal_prediction_coin == 0:
+						combined_correct_pred_count = combined_correct_pred_count + 1
+					elif signal_prediction == 1 and signal_prediction_coin == 1:
+						combined_far = combined_far + 1
+				correct_pred_count_sum=np.sum(correct_pred_count)
+				classification_rate = (correct_pred_count_sum / len(correct_pred_count)) * 100
+				combined_classification_rate = (combined_correct_pred_count / len(correct_pred_count)) * 100
+				correct_pred_count_sum_coin=np.sum(correct_pred_count_coin)
+				classification_rate_coin = (correct_pred_count_sum_coin/ len(correct_pred_count_coin)) * 100
 		
 					
-			    
+				
 				
 					
-			    if isinstance(result, dict):
-			       # print('its dict')
-			        # Handle result if it's a dictionary
-			        # Example: Convert dictionary to DataFrame with proper columns
-			        result_df = pd.DataFrame.from_dict(result, orient='index', columns=['Column_Name'])
-			        result_df_coin = pd.DataFrame.from_dict(result_coin, orient='index', columns=['Column_Name'])
+				if isinstance(result, dict):
+				   # print('its dict')
+					# Handle result if it's a dictionary
+					# Example: Convert dictionary to DataFrame with proper columns
+					result_df = pd.DataFrame.from_dict(result, orient='index', columns=['Column_Name'])
+					result_df_coin = pd.DataFrame.from_dict(result_coin, orient='index', columns=['Column_Name'])
 			
-			    df = pd.concat([df, result_df], ignore_index=True)
-			    df_coin = pd.concat([df_coin, result_df_coin], ignore_index=True)
+				df = pd.concat([df, result_df], ignore_index=True)
+				df_coin = pd.concat([df_coin, result_df_coin], ignore_index=True)
 			
 				# preds = np.concatenate([i.reshape(-1, 1) + 0 for i in preds], axis=1)
 				# pd.DataFrame(preds, columns=[str(i) for i in range(10)]).to_csv('labels.csv')
-			    lossTfinal, lossFinal = np.mean(lossT, axis=1), np.mean(loss, axis=1)
-			    labelsFinal = (np.sum(labels, axis=1) >= 1) + 0
+				lossTfinal, lossFinal = np.mean(lossT, axis=1), np.mean(loss, axis=1)
+				labelsFinal = (np.sum(labels, axis=1) >= 1) + 0
 		
-			    lossTfinal_coin, lossFinal_coin = np.mean(lossT_coin, axis=1), np.mean(loss_coin, axis=1)
-			    labelsFinal_coin = (np.sum(coinlabels, axis=1) >= 1) + 0
-		       # print('lossTfinal is : ',lossTfinal.shape)
-		     #   print('lossfina; is : ',lossFinal.shape)
-		      #  print('labels final is : ',labelsFinal.shape)
+				lossTfinal_coin, lossFinal_coin = np.mean(lossT_coin, axis=1), np.mean(loss_coin, axis=1)
+				labelsFinal_coin = (np.sum(coinlabels, axis=1) >= 1) + 0
+			   # print('lossTfinal is : ',lossTfinal.shape)
+			 #   print('lossfina; is : ',lossFinal.shape)
+			  #  print('labels final is : ',labelsFinal.shape)
 			  #  result, _ = pot_eval(lossTfinal, lossFinal, labelsFinal)
-			#    result.update(hit_att(loss, labels))
+			#	result.update(hit_att(loss, labels))
 			   # result.update(ndcg(loss, labels))
 				# print(df)
-			    print(result)
-			    print("RESULT COIN",result_coin)
-			    print("\n")
+				print(result)
+				print("RESULT COIN",result_coin)
+				print("\n")
 				# pprint(getresults2(df, result))
 				# beep(4)
 			fraction=fraction/1.3

@@ -18,7 +18,7 @@ def load_data(dataset):
     os.makedirs(folder, exist_ok=True)
 
     # Define the number of files you have
-    num_files = 10  # Adjust this as needed based on your dataset
+    num_files = 100  # Adjust this as needed based on your dataset
 
     for i in range(1, num_files + 1):
         # Load and process train, test, labels, testlabels, coinlabels, coindata files
