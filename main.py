@@ -147,7 +147,7 @@ def load_model(modelname, dims, i):
 	model = model_class(dims).double()
 
 	optimizer = torch.optim.AdamW(model.parameters(), lr=model.lr, weight_decay=1e-5)
-	scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 5, 0.9)
+	scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1e-3, 0.9)
 	fname = f'checkpoints/{args.model}_{args.dataset}/model.ckpt'
 	
 	if os.path.exists(fname) and (not args.retrain or args.test):
@@ -254,9 +254,9 @@ if __name__ == '__main__':
 	else:
 		last_loss = None
 	
-	for i in range(1, 2):
+	for i in range(1, 100):
 		#asyncio.run(main())
-		model, optimizer, scheduler, epoch, accuracy_list, last_loss = load_model(args.model, labels.shape[1], i)
+		#model, optimizer, scheduler, epoch, accuracy_list, last_loss = load_model(args.model, labels.shape[1], i)
 		print(f"Loading dataset iteration {i}...")
 		train_loader, test_loader, labels, coin_loader, coinlabels = load_dataset(args.dataset, i)
 		
@@ -271,7 +271,7 @@ if __name__ == '__main__':
 		
 		if not args.test:
 			print(f'{color.HEADER}Training {args.model} on {args.dataset}{color.ENDC}')
-			num_epochs = 10
+			num_epochs = 5
 			start = time()
 			for e in tqdm(range(epoch + 1, epoch + num_epochs + 1)):
 				lossT, lr = backprop(e, model, trainD, trainO, optimizer, scheduler)

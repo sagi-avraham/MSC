@@ -211,7 +211,7 @@ if __name__ == '__main__':
 			accuracy_list.append((lossT, lr))
 		print(color.BOLD+'Training time: '+"{:10.4f}".format(time()-start)+' s'+color.ENDC)
 		save_model(model, optimizer, scheduler, e, accuracy_list)
-	plot_accuracies(accuracy_list, f'{args.model}_{args.dataset}')
+		plot_accuracies(accuracy_list, f'{args.model}_{args.dataset}')
 
 	### Testing phase
 	labels=testlabels.T

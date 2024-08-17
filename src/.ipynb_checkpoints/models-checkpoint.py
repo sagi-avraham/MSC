@@ -356,7 +356,7 @@ class TranAD_Basic(nn.Module):
 		super(TranAD_Basic, self).__init__()
 		self.name = 'TranAD_Basic'
 		self.lr = lr
-		self.batch = 128
+		self.batch = 4096
 		self.n_feats = feats
 		self.n_window = 10
 		self.n = self.n_feats * self.n_window
@@ -380,10 +380,10 @@ class TranAD_Transformer(nn.Module):
 	def __init__(self, feats):
 		super(TranAD_Transformer, self).__init__()
 		self.name = 'TranAD_Transformer'
-		self.lr = lr
-		self.batch = 128
+		self.lr = 0.0001
+		self.batch = 512
 		self.n_feats = feats
-		self.n_hidden = 8
+		self.n_hidden = 2
 		self.n_window = 10
 		self.n = 2 * self.n_feats * self.n_window
 		self.transformer_encoder = nn.Sequential(
