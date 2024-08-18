@@ -381,9 +381,9 @@ class TranAD_Transformer(nn.Module):
 		super(TranAD_Transformer, self).__init__()
 		self.name = 'TranAD_Transformer'
 		self.lr = 0.0001
-		self.batch = 512
+		self.batch = 4096
 		self.n_feats = feats
-		self.n_hidden = 2
+		self.n_hidden = 8
 		self.n_window = 10
 		self.n = 2 * self.n_feats * self.n_window
 		

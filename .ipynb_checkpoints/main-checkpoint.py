@@ -57,7 +57,7 @@ def compute_and_plot_roc(true_positive_rate, false_positive_rate, ROCFilename):
 	fpr = np.array(false_positive_rate)
 	
 	# Sort FPR and corresponding TPR values
-	sorted_indices = np.argsort(fpr)
+	#sorted_indices = np.argsort(fpr)
 	fpr_sorted = fpr
 	tpr_sorted = tpr
 	
@@ -258,7 +258,7 @@ if __name__ == '__main__':
 			
 	
 			
-			for i in range(1,5):
+			for i in range(1,10):
 				#print(f"Loading dataset iteration {i}...")
 				train_loader, test_loader, labels, coin_loader, coinlabels = load_dataset(args.dataset, i)
 	
@@ -401,6 +401,8 @@ with open(file_path, 'w') as file:
 	file.write("===================\n\n")
 
 # Now, append the logs during each iteration
+true_positive_rate = np.zeros((40,))
+false_positive_rate = np.zeros((40,))
 with open(file_path, 'a') as file:
 	for j in range(40):
 		signal_prediction = []
@@ -416,8 +418,6 @@ with open(file_path, 'a') as file:
 		False_alarms_coin = []
 		combined_correct_pred_count = 0
 		combined_far = 0
-		true_positive_rate = np.zeros((40,))
-		false_positive_rate = np.zeros((40,))
 		true_positive_count = 0
 		false_positive_count = 0
 		true_negative_count = 0
@@ -498,7 +498,10 @@ with open(file_path, 'a') as file:
 
 			
 			#input('enter to continue')
+	print('true positive rate is',true_positive_rate)
+	print('false positive rate is',false_positive_rate)
 	compute_and_plot_roc(true_positive_rate, false_positive_rate, ROCFilename)
+	
 	print(f'Correct classification rate: {classification_rate:.2f}%')
 	print('false alarm rate',FAR_count)
 	
