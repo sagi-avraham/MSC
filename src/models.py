@@ -386,16 +386,27 @@ class TranAD_Transformer(nn.Module):
 		self.n_hidden = 2
 		self.n_window = 10
 		self.n = 2 * self.n_feats * self.n_window
+		
+		# Transformer Encoder with Tanh instead of ReLU
 		self.transformer_encoder = nn.Sequential(
-			nn.Linear(self.n, self.n_hidden), nn.ReLU(True),
-			nn.Linear(self.n_hidden, self.n), nn.ReLU(True))
+			nn.Linear(self.n, self.n_hidden), nn.Tanh(),  # ReLU replaced with Tanh
+			nn.Linear(self.n_hidden, self.n), nn.Tanh()   # ReLU replaced with Tanh
+		)
+		
+		# Transformer Decoders with Tanh instead of ReLU
 		self.transformer_decoder1 = nn.Sequential(
-			nn.Linear(self.n, self.n_hidden), nn.ReLU(True),
-			nn.Linear(self.n_hidden, 2 * feats), nn.ReLU(True))
+			nn.Linear(self.n, self.n_hidden), nn.Tanh(),  # ReLU replaced with Tanh
+			nn.Linear(self.n_hidden, 2 * feats), nn.Tanh()  # ReLU replaced with Tanh
+		)
 		self.transformer_decoder2 = nn.Sequential(
-			nn.Linear(self.n, self.n_hidden), nn.ReLU(True),
-			nn.Linear(self.n_hidden, 2 * feats), nn.ReLU(True))
-		self.fcn = nn.Sequential(nn.Linear(2 * feats, feats), nn.Sigmoid())
+			nn.Linear(self.n, self.n_hidden), nn.Tanh(),  # ReLU replaced with Tanh
+			nn.Linear(self.n_hidden, 2 * feats), nn.Tanh()  # ReLU replaced with Tanh
+		)
+		
+		# Fully Connected Network with Tanh instead of Sigmoid
+		self.fcn = nn.Sequential(
+			nn.Linear(2 * feats, feats), nn.Tanh()  # Sigmoid replaced with Tanh
+		)
 
 	def encode(self, src, c, tgt):
 		#print(f"Shape of src: {src.shape}")

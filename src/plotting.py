@@ -33,7 +33,7 @@ def plotter(name, y_true, y_pred, ascore, labels):
         y_t, y_p, l, a_s = y_true[:, dim], y_pred[:, dim], labels[dim, :], ascore[:, dim]
         
         # Scale the values by 0.5e-22
-        scale_factor = 0.5e-22
+        scale_factor = 5e-22
         y_t_scaled = y_t * scale_factor
         y_p_scaled = y_p * scale_factor
         
