@@ -211,7 +211,7 @@ def pot_eval(min_top_score, init_score, score, label, q=1e-5, level=0.02):
     if anomalies > 200:
         signal_prediction = 1
     else:
-        # This case is for when TP <= 500 and FN <= 100
+       
         signal_prediction = 0 
 
  # Determine actual_label based on the labels
@@ -221,20 +221,24 @@ def pot_eval(min_top_score, init_score, score, label, q=1e-5, level=0.02):
         actual_label = 'Noise'
 		
     if signal_prediction == 1:
+		
         if actual_label == 'Signal':
 	        correct_pred_count = 1
 	        predict_label = 'Signal'
 	        true_positive=1
+			
         elif actual_label == 'Noise':
 	        correct_pred_count = 0
 	        predict_label = 'Signal'
 	        False_alarm=1
 	        false_positive=1
     else:
+		
         if actual_label == 'Noise':
 	        correct_pred_count = 1
 	        predict_label = 'Noise'
 	        true_negative=1
+			
         elif actual_label == 'Signal':
 	        false_negative=1
 	        correct_pred_count = 0
@@ -264,4 +268,4 @@ def pot_eval(min_top_score, init_score, score, label, q=1e-5, level=0.02):
     # Print the signal status
    # print(f"Signal prediction: {signal_prediction}")
     print(min_top_score)
-    return results, np.array(pred), actual_label,correct_pred_count,False_alarm,signal_prediction,TP,p_t[5],p_t[4],FN,true_positive,false_positive,true_negative,false_negative
+    return np.array(pred),signal_prediction,true_positive,false_positive,true_negative,false_negative

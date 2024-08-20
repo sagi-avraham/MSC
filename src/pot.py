@@ -268,4 +268,4 @@ def pot_eval(min_top_score, init_score, score, label, q=1e-5, level=0.02):
     # Print the signal status
    # print(f"Signal prediction: {signal_prediction}")
     print(min_top_score)
-    return results, np.array(pred), actual_label,correct_pred_count,False_alarm,signal_prediction,TP,p_t[5],p_t[4],FN,true_positive,false_positive,true_negative,false_negative
+    return np.array(pred),signal_prediction,true_positive,false_positive,true_negative,false_negative
